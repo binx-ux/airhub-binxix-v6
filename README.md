@@ -1,134 +1,118 @@
-Binxix Hub V6
+# Binxix Hub V6 🚀  
+### AirHub V2 Style Redesign
 
-AirHub V2 Style Redesign
+A modern Roblox script hub featuring a clean AirHub V2–inspired UI, smooth animations, and automatic game detection with smart feature loading.
 
-Overview
+Binxix Hub V6 focuses on performance, visuals, and ease of use while keeping the source closed and protected.
 
-Binxix Hub V6 is a Roblox script hub featuring a complete UI redesign inspired by the AirHub V2 aesthetic. This version focuses on a premium visual style, smooth animations, modular structure, and automatic game detection with conditional feature loading.
+---
 
-The hub supports multiple Roblox experiences and adapts its functionality depending on the current game.
+## ✨ Features
 
-Features
-User Interface
+###  User Interface
+- AirHub V2 inspired redesign
+- Smooth TweenService animations
+- Modern tab-based layout
+- Clean spacing, typography, and color consistency
+- Optimized for performance and stability
 
-Full AirHub V2 inspired redesign
+###  Game Detection
+- Automatically detects the current PlaceId
+- Loads game-specific features
+- Falls back to universal mode when unsupported
 
-Custom color palette with purple and pink accents
+### 🕹 Supported Games
+- Arsenal  
+- MiscGunTest-X  
+- PR  
+- MTC  
+- Quick-Shot  
+- Sniper Duels  
+- Murder Mystery 2 (external loader)  
+- The Strongest Battlegrounds (external loader)  
 
-Smooth tween animations using TweenService
+Some games automatically redirect to trusted external scripts.
 
-Modern tab system with active and inactive states
+---
 
-Clean typography and consistent spacing
-
-Optimized UI performance
-
-Game Detection
-
-Automatically detects the current PlaceId
-
-Loads game-specific configurations
-
-Falls back to a universal mode if the game is unsupported
-
-Supported Games
-
-Arsenal
-
-MiscGunTest-X
-
-PR
-
-MTC
-
-Quick-Shot
-
-Sniper Duels
-
-Murder Mystery 2 (external loader)
-
-The Strongest Battlegrounds (external loader)
-
-Some games redirect to trusted external scripts when detected.
-
-ESP System
-
-Distance-based ESP color scaling
-
-Separate color definitions for close, medium, far, and very far targets
-
-Game-based ESP enable or disable logic
+## 👁 ESP System
+- Distance-based ESP color scaling
+- Separate colors for:
+  - Close targets
+  - Medium range
+  - Far range
+  - Very far range
+- Game-based ESP enable/disable logic
 
 ESP availability depends on the detected game.
 
-Supported Executors
+---
 
-Binxix Hub V6 is designed to work with executors that support modern UI rendering, HttpGet, and environment access.
+##  Supported Executors
+Binxix Hub V6 is designed for executors that support modern UI rendering and HttpGet.
 
-Tested compatibility includes:
+### ✅ Tested Executors
+- Xeno  
+- Solara  
+- Wave  
+- Seliware  
 
-Xeno
+Executor updates may affect compatibility. Always use the latest version.
 
-Solara
+---
 
-Wave
+##  External Script Handling
+For certain games, the hub unloads itself and redirects automatically:
 
-Seliware
+- **Murder Mystery 2** → Vertex  
+- **The Strongest Battlegrounds** → Phantasm  
 
-Compatibility may vary depending on executor updates. Using outdated versions may cause UI or feature issues.
+A custom loader notification UI is shown during redirection.
 
-External Script Handling
+---
 
-For certain games, Binxix Hub V6 automatically unloads itself and redirects to an external script:
+##  Services Used
+- Players  
+- TweenService  
+- TeleportService  
+- RunService  
+- UserInputService  
+- Workspace  
+- Lighting  
+- HttpService  
 
-Murder Mystery 2 uses Vertex
+---
 
-The Strongest Battlegrounds uses Phantasm
+## ▶ Execution
+This script must be executed using a compatible Roblox script executor that supports:
+- HttpGet
+- UI instance creation
+- TweenService
+- Global environment access
 
-A custom loader notification UI is displayed during redirection.
+---
 
-Services Used
+## 🔒 Source & Usage Policy
+This project is **closed-source**.
 
-Players
+You are allowed to:
+- Use the script as provided
 
-TweenService
+You are NOT allowed to:
+- Modify the script
+- Redistribute the script
+- Reverse engineer or decompile
+- Reupload or resell the script
 
-TeleportService
+---
 
-RunService
+## ⚠ Disclaimer
+This project is provided for educational and experimental purposes only.  
+Use at your own risk. The author is not responsible for bans, data loss, or account actions.
 
-UserInputService
+---
 
-Workspace
-
-Lighting
-
-HttpService
-
-Execution
-
-This script is intended to be executed through a compatible Roblox script executor that supports:
-
-HttpGet
-
-UI instance creation
-
-TweenService
-
-Global environment access
-
-Source Visibility and Usage
-
-This project is intended for use only as provided.
-
-You may run the script as-is, but modification, redistribution, or reverse engineering is not permitted unless explicitly authorized by the author.
-
-Disclaimer
-
-This project is provided for educational and experimental purposes. Use at your own risk. The author is not responsible for bans, data loss, or account actions resulting from usage.
-
-Credits
-
-Binxix
-UI redesign inspired by AirHub V2
-External scripts credited to their respective authors
+##  Credits
+**Binxix**  
+UI design inspired by AirHub V2  
+External scripts belong to their respective authors
