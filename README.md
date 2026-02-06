@@ -1,4 +1,4 @@
-![Version](https://img.shields.io/badge/Binxix%20Hub-v6.0-purple)
+![Version](https://img.shields.io/badge/Binxix%20Hub-v6.2-purple)
 ![Build](https://img.shields.io/badge/build-stable-success)
 ![Support](https://img.shields.io/badge/executors-supported-blue)
 
