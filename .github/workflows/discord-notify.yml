@@ -32,15 +32,15 @@ jobs:
           TIMESTAMP="${{ github.event.head_commit.timestamp }}"
           PARENT_SHA=$(git rev-parse HEAD~1 2>/dev/null || echo "")
 
-          # ══════════════════════════════════════════
-          # SEQUENTIAL VERSION (from VERSION file)
-          # ══════════════════════════════════════════
-          # Skip if this push is the auto version bump itself
+          # Skip auto version bump commits
           if echo "$COMMIT_MSG" | grep -q "^\[auto\] version bump"; then
-            echo "⏭️ Skipping — this is a version bump commit"
+            echo "⏭️ Skipping — version bump commit"
             exit 0
           fi
 
+          # ══════════════════════════════════════════
+          # SEQUENTIAL VERSION
+          # ══════════════════════════════════════════
           if [ -f "VERSION" ]; then
             BUILD_NUM=$(cat VERSION | tr -d '[:space:]')
           else
@@ -50,7 +50,6 @@ jobs:
           BUILD_NUM=$((BUILD_NUM + 1))
           VERSION="v6.${BUILD_NUM}"
 
-          # Commit the bumped version back to the repo
           echo "$BUILD_NUM" > VERSION
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -58,26 +57,22 @@ jobs:
           git commit -m "[auto] version bump to ${VERSION}" || true
           git push || true
 
-          echo "📦 Version: ${VERSION} (build #${BUILD_NUM})"
-
           # ══════════════════════════════════════════
-          # FIND THE MAIN LUA SOURCE FILE
+          # ONLY LOOK AT source/*.lua
           # ══════════════════════════════════════════
           SOURCE_FILE=""
-          for pattern in "source/*.lua" "src/*.lua" "*.lua"; do
-            for f in $pattern; do
-              if [ -f "$f" ]; then
-                SOURCE_FILE="$f"
-                break 2
-              fi
-            done
+          for f in source/*.lua; do
+            if [ -f "$f" ]; then
+              SOURCE_FILE="$f"
+              break
+            fi
           done
 
           CHANGES=""
           STATS_LINE=""
 
           if [ -n "$SOURCE_FILE" ] && [ -n "$PARENT_SHA" ]; then
-            if git diff --name-only "$PARENT_SHA" HEAD~1 2>/dev/null | grep -qF "$SOURCE_FILE" || git diff --name-only "$PARENT_SHA" HEAD | grep -qF "$SOURCE_FILE"; then
+            if git diff --name-only "$PARENT_SHA" HEAD | grep -qF "$SOURCE_FILE"; then
 
               INS=$(git diff --numstat "$PARENT_SHA" HEAD -- "$SOURCE_FILE" | awk '{print $1}')
               DEL=$(git diff --numstat "$PARENT_SHA" HEAD -- "$SOURCE_FILE" | awk '{print $2}')
@@ -86,6 +81,7 @@ jobs:
               ADDED_LINES=$(git diff "$PARENT_SHA" HEAD -- "$SOURCE_FILE" | grep "^+" | grep -v "^+++" || true)
               REMOVED_LINES=$(git diff "$PARENT_SHA" HEAD -- "$SOURCE_FILE" | grep "^-" | grep -v "^---" || true)
 
+              # New Games
               NEW_GAMES=$(echo "$ADDED_LINES" | grep -oP '\{name\s*=\s*"\K[^"]+' 2>/dev/null | head -5 || true)
               if [ -n "$NEW_GAMES" ]; then
                 GAME_LIST=""
@@ -95,6 +91,7 @@ jobs:
                 [ -n "$GAME_LIST" ] && CHANGES="${CHANGES}🎮 **New Games:** ${GAME_LIST}\n"
               fi
 
+              # New Functions
               NEW_FUNCS=$(echo "$ADDED_LINES" | grep -oP '(?:local\s+)?function\s+\K\w+' 2>/dev/null | sort -u | head -10 || true)
               if [ -n "$NEW_FUNCS" ]; then
                 FUNC_LIST=""
@@ -104,6 +101,7 @@ jobs:
                 [ -n "$FUNC_LIST" ] && CHANGES="${CHANGES}🆕 **New Functions:** ${FUNC_LIST}\n"
               fi
 
+              # Removed Functions
               REMOVED_FUNCS=$(echo "$REMOVED_LINES" | grep -oP '(?:local\s+)?function\s+\K\w+' 2>/dev/null | sort -u | head -10 || true)
               if [ -n "$REMOVED_FUNCS" ]; then
                 ACTUALLY_REMOVED=""
@@ -115,6 +113,7 @@ jobs:
                 [ -n "$ACTUALLY_REMOVED" ] && CHANGES="${CHANGES}🗑️ **Removed Functions:** ${ACTUALLY_REMOVED}\n"
               fi
 
+              # New Settings
               NEW_SETTINGS=$(echo "$ADDED_LINES" | grep -P '^\+\s{4,}\w+\s*=' 2>/dev/null | grep -oP '^\+\s+\K\w+' 2>/dev/null | sort -u | head -12 || true)
               if [ -n "$NEW_SETTINGS" ]; then
                 SETTING_LIST=""
@@ -129,6 +128,7 @@ jobs:
                 [ -n "$SETTING_LIST" ] && CHANGES="${CHANGES}⚙️ **New Settings:** ${SETTING_LIST}\n"
               fi
 
+              # New Checkboxes
               NEW_CHECKBOXES=$(echo "$ADDED_LINES" | grep -oP 'createCheckbox\(\w+,\s*"\K[^"]+' 2>/dev/null | head -8 || true)
               if [ -n "$NEW_CHECKBOXES" ]; then
                 CB_LIST=""
@@ -138,6 +138,7 @@ jobs:
                 [ -n "$CB_LIST" ] && CHANGES="${CHANGES}✅ **New Toggles:**\n${CB_LIST}"
               fi
 
+              # New Sliders
               NEW_SLIDERS=$(echo "$ADDED_LINES" | grep -oP 'createSlider\(\w+,\s*"\K[^"]+' 2>/dev/null | head -6 || true)
               if [ -n "$NEW_SLIDERS" ]; then
                 SL_LIST=""
@@ -147,6 +148,7 @@ jobs:
                 [ -n "$SL_LIST" ] && CHANGES="${CHANGES}🎚️ **New Sliders:**\n${SL_LIST}"
               fi
 
+              # New Dropdowns
               NEW_DROPDOWNS=$(echo "$ADDED_LINES" | grep -oP 'createDropdown\(\w+,\s*"\K[^"]+' 2>/dev/null | head -4 || true)
               if [ -n "$NEW_DROPDOWNS" ]; then
                 DD_LIST=""
@@ -156,6 +158,7 @@ jobs:
                 [ -n "$DD_LIST" ] && CHANGES="${CHANGES}📋 **New Dropdowns:**\n${DD_LIST}"
               fi
 
+              # New Sections
               NEW_SECTIONS=$(echo "$ADDED_LINES" | grep -oP 'createSectionHeader\(\w+,\s*"\K[^"]+' 2>/dev/null | head -5 || true)
               if [ -n "$NEW_SECTIONS" ]; then
                 SEC_LIST=""
@@ -165,6 +168,7 @@ jobs:
                 [ -n "$SEC_LIST" ] && CHANGES="${CHANGES}📂 **New Sections:** ${SEC_LIST}\n"
               fi
 
+              # New Themes
               if echo "$ADDED_LINES" | grep -qP "Background\s*=\s*Color3"; then
                 NEW_THEMES=$(echo "$ADDED_LINES" | grep -oP '^\+\s{4}\K\w+(?=\s*=\s*\{)' 2>/dev/null | head -5 || true)
                 if [ -n "$NEW_THEMES" ]; then
@@ -176,9 +180,11 @@ jobs:
                 fi
               fi
 
+              # WIP Flags
               NEW_WIP=$(echo "$ADDED_LINES" | grep -c 'wip\s*=\s*true' 2>/dev/null || echo "0")
               [ "$NEW_WIP" -gt 0 ] && CHANGES="${CHANGES}🚧 **WIP flags added:** ${NEW_WIP} game(s)\n"
 
+              # External Scripts
               NEW_LOADSCRIPT=$(echo "$ADDED_LINES" | grep -oP 'loadScript\s*=\s*"\K[^"]+' 2>/dev/null | head -3 || true)
               if [ -n "$NEW_LOADSCRIPT" ]; then
                 LS_LIST=""
@@ -188,35 +194,15 @@ jobs:
                 [ -n "$LS_LIST" ] && CHANGES="${CHANGES}📜 **New External Scripts:**\n${LS_LIST}"
               fi
 
+              # Event Connections
               NEW_CONNS=$(echo "$ADDED_LINES" | grep -c ":Connect(function" 2>/dev/null || echo "0")
               [ "$NEW_CONNS" -gt 3 ] && CHANGES="${CHANGES}⚡ **New event hooks:** ${NEW_CONNS} connections\n"
 
             else
               STATS_LINE="📄 \`${SOURCE_FILE}\` — no changes"
             fi
-          fi
-
-          # ══════════════════════════════════════════
-          # CHECK script/* (obfuscated builds)
-          # ══════════════════════════════════════════
-          OBF_CHANGES=""
-          if [ -n "$PARENT_SHA" ]; then
-            for FILE in $(git diff --name-only "$PARENT_SHA" HEAD 2>/dev/null); do
-              if [[ "$FILE" == script/* ]]; then
-                OBF_INS=$(git diff --numstat "$PARENT_SHA" HEAD -- "$FILE" | awk '{print $1}')
-                OBF_DEL=$(git diff --numstat "$PARENT_SHA" HEAD -- "$FILE" | awk '{print $2}')
-                OBF_TAG=""
-                if [ -f "$FILE" ]; then
-                  FIRST=$(head -c 200 "$FILE" 2>/dev/null || echo "")
-                  if echo "$FIRST" | grep -qiP "wearedevs|obfuscat"; then
-                    OBF_TAG=" 🔒 JJSploit"
-                  elif echo "$FIRST" | grep -qiP "return\(function"; then
-                    OBF_TAG=" 🔒 Obfuscated"
-                  fi
-                fi
-                OBF_CHANGES="${OBF_CHANGES}📦 \`${FILE}\` — +${OBF_INS:-0} / -${OBF_DEL:-0}${OBF_TAG}\n"
-              fi
-            done
+          else
+            STATS_LINE="⚠️ No source/*.lua file found"
           fi
 
           # ══════════════════════════════════════════
@@ -225,11 +211,10 @@ jobs:
           DESC="**${COMMIT_MSG}**\n"
 
           [ -n "$STATS_LINE" ] && DESC="${DESC}\n${STATS_LINE}\n"
-          [ -n "$OBF_CHANGES" ] && DESC="${DESC}${OBF_CHANGES}"
           [ -n "$CHANGES" ] && DESC="${DESC}\n${CHANGES}"
 
-          if [ -z "$STATS_LINE" ] && [ -z "$OBF_CHANGES" ] && [ -z "$CHANGES" ]; then
-            DESC="${DESC}\n🔧 Config/docs update"
+          if [ -z "$CHANGES" ] && [[ "$STATS_LINE" != *"no changes"* ]] && [[ "$STATS_LINE" != *"No source"* ]]; then
+            DESC="${DESC}\n🔧 Minor update"
           fi
 
           if [ ${#DESC} -gt 3800 ]; then
