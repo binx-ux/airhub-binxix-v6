@@ -3,299 +3,118 @@ name: Discord Update Notification
 on:
   push:
     branches: [main]
+    paths:
+      - 'script/aimbot'
 
 jobs:
   notify:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout full repo (need history for diff)
+      - name: Checkout repo
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 2
 
-      - name: Build and send Discord notification
+      - name: Send Discord notification
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
         run: |
           set -euo pipefail
 
-          # ============================================
-          # COMMIT INFO
-          # ============================================
+          # ── Commit Info ──
           COMMIT_MSG=$(echo '${{ github.event.head_commit.message }}' | head -1)
           COMMIT_SHA="${{ github.sha }}"
           SHORT_SHA="${COMMIT_SHA:0:7}"
           AUTHOR="${{ github.event.head_commit.author.name }}"
           COMMIT_URL="${{ github.event.head_commit.url }}"
           REPO="${{ github.repository }}"
-          BRANCH="${{ github.ref_name }}"
           TIMESTAMP="${{ github.event.head_commit.timestamp }}"
 
+          # Version from hash
           HASH_NUM=$((16#${COMMIT_SHA:0:4} % 1000))
           VERSION="v6.${HASH_NUM}"
 
-          ADDED=$(echo '${{ toJSON(github.event.head_commit.added) }}' | jq 'length')
-          MODIFIED=$(echo '${{ toJSON(github.event.head_commit.modified) }}' | jq 'length')
-          REMOVED=$(echo '${{ toJSON(github.event.head_commit.removed) }}' | jq 'length')
-
-          # ============================================
-          # CHANGELOG FROM COMMITS
-          # ============================================
-          CHANGELOG=""
-          COMMIT_COUNT=0
-          while IFS= read -r line; do
-            SHA=$(echo "$line" | jq -r '.id' 2>/dev/null)
-            MSG=$(echo "$line" | jq -r '.message' 2>/dev/null | head -1)
-            URL=$(echo "$line" | jq -r '.url' 2>/dev/null)
-            if [ "$SHA" != "null" ] && [ -n "$SHA" ]; then
-              SHORT="${SHA:0:7}"
-              if [ $COMMIT_COUNT -eq 0 ]; then
-                CHANGELOG="${CHANGELOG}🔥 [\`${SHORT}\`](${URL}) — ${MSG}\n"
-              else
-                CHANGELOG="${CHANGELOG}• [\`${SHORT}\`](${URL}) — ${MSG}\n"
-              fi
-              COMMIT_COUNT=$((COMMIT_COUNT + 1))
-            fi
-          done < <(echo '${{ toJSON(github.event.commits) }}' | jq -c '.[]')
-
-          if [ -z "$CHANGELOG" ]; then
-            CHANGELOG="🔥 [\`${SHORT_SHA}\`](${COMMIT_URL}) — ${COMMIT_MSG}"
-            COMMIT_COUNT=1
-          fi
-
-          # ============================================
-          # SMART SCRIPT DIFF
-          # ============================================
-          # How this works:
-          #
-          #   1. Looks for .lua source files first (source/, src/, or root)
-          #      → If found: diffs those for full smart changelog
-          #        (new functions, settings, toggles, sliders, etc.)
-          #
-          #   2. If only obfuscated files changed (script/aimbot):
-          #      → Reports line count + obfuscation status
-          #      → Parses your COMMIT MESSAGE for feature keywords
-          #        so write commits like:
-          #          "Add Kill Aura, Trigger Bot, fix skeleton ESP"
-          #          "New: Streamer Mode, Profile System | Fix: tracer lag"
-          #
-          # RECOMMENDED REPO LAYOUT:
-          #   source/BinxixHub_V6.lua    ← raw source (smart diff reads this)
-          #   script/aimbot              ← obfuscated (what users loadstring)
-          # ============================================
-
+          # ── Line Changes ──
           PARENT_SHA=$(git rev-parse HEAD~1 2>/dev/null || echo "")
-          SCRIPT_CHANGES=""
-          SMART_DIFF_DONE=false
-          CHANGED_FILES=""
-
+          LINE_INFO="Unknown"
           if [ -n "$PARENT_SHA" ]; then
-            CHANGED_FILES=$(git diff --name-only "$PARENT_SHA" HEAD 2>/dev/null || echo "")
-
-            # ==========================================
-            # PASS 1: .lua source files → full smart diff
-            # ==========================================
-            for FILE in $CHANGED_FILES; do
-              if [[ "$FILE" == *.lua ]]; then
-                SMART_DIFF_DONE=true
-                INSERTIONS=$(git diff --numstat "$PARENT_SHA" HEAD -- "$FILE" 2>/dev/null | awk '{print $1}')
-                DELETIONS=$(git diff --numstat "$PARENT_SHA" HEAD -- "$FILE" 2>/dev/null | awk '{print $2}')
-                SCRIPT_CHANGES="${SCRIPT_CHANGES}📄 **${FILE}** — +${INSERTIONS:-0} / -${DELETIONS:-0} lines\n"
-
-                # New functions
-                NEW_FUNCS=$(git diff "$PARENT_SHA" HEAD -- "$FILE" 2>/dev/null | grep "^+" | grep -oP "(?<=local function )\w+" 2>/dev/null | head -10 || true)
-                if [ -n "$NEW_FUNCS" ]; then
-                  FUNC_LIST=""
-                  while IFS= read -r func; do
-                    [ -n "$func" ] && FUNC_LIST="${FUNC_LIST}\`${func}\` "
-                  done <<< "$NEW_FUNCS"
-                  [ -n "$FUNC_LIST" ] && SCRIPT_CHANGES="${SCRIPT_CHANGES}  🆕 Functions: ${FUNC_LIST}\n"
-                fi
-
-                # New settings
-                NEW_SETTINGS=$(git diff "$PARENT_SHA" HEAD -- "$FILE" 2>/dev/null | grep "^+" | grep -P "^\+\s{8,}\w+\s*=" 2>/dev/null | sed 's/^+\s*//' | head -10 || true)
-                if [ -n "$NEW_SETTINGS" ]; then
-                  SETTING_LIST=""
-                  COUNT=0
-                  while IFS= read -r setting; do
-                    SETTING_NAME=$(echo "$setting" | grep -oP "^\w+" 2>/dev/null || true)
-                    if [ -n "$SETTING_NAME" ] && [ $COUNT -lt 8 ]; then
-                      SETTING_LIST="${SETTING_LIST}\`${SETTING_NAME}\` "
-                      COUNT=$((COUNT + 1))
-                    fi
-                  done <<< "$NEW_SETTINGS"
-                  [ -n "$SETTING_LIST" ] && SCRIPT_CHANGES="${SCRIPT_CHANGES}  ⚙️ Settings: ${SETTING_LIST}\n"
-                fi
-
-                # New sections
-                NEW_SECTIONS=$(git diff "$PARENT_SHA" HEAD -- "$FILE" 2>/dev/null | grep "^+" | grep -oP '(?<=createSectionHeader\(\w+, ")[^"]+' 2>/dev/null | head -5 || true)
-                if [ -n "$NEW_SECTIONS" ]; then
-                  SEC_LIST=""
-                  while IFS= read -r sec; do
-                    [ -n "$sec" ] && SEC_LIST="${SEC_LIST}\`${sec}\` "
-                  done <<< "$NEW_SECTIONS"
-                  [ -n "$SEC_LIST" ] && SCRIPT_CHANGES="${SCRIPT_CHANGES}  📂 Sections: ${SEC_LIST}\n"
-                fi
-
-                # New checkboxes
-                NEW_CB=$(git diff "$PARENT_SHA" HEAD -- "$FILE" 2>/dev/null | grep "^+" | grep -oP '(?<=createCheckbox\(\w+, ")[^"]+' 2>/dev/null | head -8 || true)
-                if [ -n "$NEW_CB" ]; then
-                  CB_LIST=""
-                  while IFS= read -r cb; do
-                    [ -n "$cb" ] && CB_LIST="${CB_LIST}• ${cb}\n"
-                  done <<< "$NEW_CB"
-                  [ -n "$CB_LIST" ] && SCRIPT_CHANGES="${SCRIPT_CHANGES}  ✅ Toggles:\n${CB_LIST}"
-                fi
-
-                # New sliders
-                NEW_SL=$(git diff "$PARENT_SHA" HEAD -- "$FILE" 2>/dev/null | grep "^+" | grep -oP '(?<=createSlider\(\w+, ")[^"]+' 2>/dev/null | head -6 || true)
-                if [ -n "$NEW_SL" ]; then
-                  SL_LIST=""
-                  while IFS= read -r sl; do
-                    [ -n "$sl" ] && SL_LIST="${SL_LIST}• ${sl}\n"
-                  done <<< "$NEW_SL"
-                  [ -n "$SL_LIST" ] && SCRIPT_CHANGES="${SCRIPT_CHANGES}  🎚️ Sliders:\n${SL_LIST}"
-                fi
-
-                # New dropdowns
-                NEW_DD=$(git diff "$PARENT_SHA" HEAD -- "$FILE" 2>/dev/null | grep "^+" | grep -oP '(?<=createDropdown\(\w+, ")[^"]+' 2>/dev/null | head -4 || true)
-                if [ -n "$NEW_DD" ]; then
-                  DD_LIST=""
-                  while IFS= read -r dd; do
-                    [ -n "$dd" ] && DD_LIST="${DD_LIST}• ${dd}\n"
-                  done <<< "$NEW_DD"
-                  [ -n "$DD_LIST" ] && SCRIPT_CHANGES="${SCRIPT_CHANGES}  📋 Dropdowns:\n${DD_LIST}"
-                fi
-              fi
-            done
-
-            # ==========================================
-            # PASS 2: Obfuscated files (script/*)
-            # ==========================================
-            for FILE in $CHANGED_FILES; do
-              if [[ "$FILE" == script/* ]] && [[ "$FILE" != *.lua ]]; then
-                INSERTIONS=$(git diff --numstat "$PARENT_SHA" HEAD -- "$FILE" 2>/dev/null | awk '{print $1}')
-                DELETIONS=$(git diff --numstat "$PARENT_SHA" HEAD -- "$FILE" 2>/dev/null | awk '{print $2}')
-
-                OBF_TAG=""
-                FIRST_LINE=$(head -c 200 "$FILE" 2>/dev/null || echo "")
-                if echo "$FIRST_LINE" | grep -qiP "wearedevs|obfuscat"; then
-                  OBF_TAG=" 🔒 JJSploit"
-                elif echo "$FIRST_LINE" | grep -qiP "return\(function"; then
-                  OBF_TAG=" 🔒 Obfuscated"
-                fi
-
-                SCRIPT_CHANGES="${SCRIPT_CHANGES}📄 **${FILE}** — +${INSERTIONS:-0} / -${DELETIONS:-0} lines${OBF_TAG}\n"
-
-                # If no .lua source was found, parse commit message for features
-                if [ "$SMART_DIFF_DONE" = false ]; then
-                  # Look for patterns like "Add X", "New: X", "Fix X"
-                  FEATURES=$(echo "$COMMIT_MSG" | grep -oiP "(?:add|new|fix|update|improve|rework|remove)[:\s]+[^,.|]+" 2>/dev/null | head -6 || true)
-                  if [ -n "$FEATURES" ]; then
-                    SCRIPT_CHANGES="${SCRIPT_CHANGES}  📝 From commit:\n"
-                    while IFS= read -r feat; do
-                      [ -n "$feat" ] && SCRIPT_CHANGES="${SCRIPT_CHANGES}  • ${feat}\n"
-                    done <<< "$FEATURES"
-                  else
-                    SCRIPT_CHANGES="${SCRIPT_CHANGES}  💡 *Tip: add source/ folder with .lua for detailed changelogs*\n"
-                    SCRIPT_CHANGES="${SCRIPT_CHANGES}  💡 *Or write commits like: Add Kill Aura, fix skeleton*\n"
-                  fi
-                fi
-              fi
-            done
-          fi
-
-          if [ -z "$SCRIPT_CHANGES" ]; then
-            SCRIPT_CHANGES="No script changes (config/docs only)"
-          fi
-
-          # ============================================
-          # OBFUSCATION STATUS
-          # ============================================
-          OBFUSCATED="❌ Raw"
-          for FILE in $CHANGED_FILES; do
-            if [[ "$FILE" == script/* ]]; then
-              FIRST_LINE=$(head -c 200 "$FILE" 2>/dev/null || echo "")
-              if echo "$FIRST_LINE" | grep -qiP "wearedevs|obfuscat"; then
-                OBFUSCATED="✅ JJSploit"
-                break
-              elif echo "$FIRST_LINE" | grep -qiP "return\(function"; then
-                OBFUSCATED="✅ Yes"
-                break
-              fi
+            STATS=$(git diff --numstat "$PARENT_SHA" HEAD -- script/aimbot 2>/dev/null | awk '{print $1, $2}')
+            if [ -n "$STATS" ]; then
+              INS=$(echo "$STATS" | awk '{print $1}')
+              DEL=$(echo "$STATS" | awk '{print $2}')
+              LINE_INFO="+${INS} / -${DEL} lines"
             fi
-          done
-
-          # ============================================
-          # TRUNCATE for Discord limits
-          # ============================================
-          if [ ${#CHANGELOG} -gt 800 ]; then
-            CHANGELOG="${CHANGELOG:0:780}\\n... and more"
-          fi
-          if [ ${#SCRIPT_CHANGES} -gt 900 ]; then
-            SCRIPT_CHANGES="${SCRIPT_CHANGES:0:880}\\n... and more"
           fi
 
-          # ============================================
-          # SEND TO DISCORD
-          # ============================================
+          # ── Auto-Detect Changes from Commit Message ──
+          # Write commits like: "Add Kill Aura, update ESP, fix tracer lag"
+          # Or: "New: Streamer Mode, Profile System | Fix: skeleton ESP"
+          CHANGES=""
+
+          # Extract features from commit message
+          FEATURES=$(echo "$COMMIT_MSG" | grep -oiP "(?:add|new|update|improve|rework|fix|remove|tweak|buff|nerf|rework)[:\s]+[^,.|]+" 2>/dev/null | head -8 || true)
+          if [ -n "$FEATURES" ]; then
+            while IFS= read -r feat; do
+              if [ -n "$feat" ]; then
+                # Capitalize first letter and clean up
+                CLEAN=$(echo "$feat" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
+                ICON="🔧"
+                echo "$CLEAN" | grep -qiP "^(add|new)" && ICON="✨"
+                echo "$CLEAN" | grep -qiP "^fix" && ICON="🐛"
+                echo "$CLEAN" | grep -qiP "^remove" && ICON="🗑️"
+                echo "$CLEAN" | grep -qiP "^(update|improve|rework|tweak)" && ICON="⚡"
+                CHANGES="${CHANGES}${ICON} ${CLEAN}\n"
+              fi
+            done <<< "$FEATURES"
+          fi
+
+          # If no parseable features, just show commit message
+          if [ -z "$CHANGES" ]; then
+            CHANGES="🔧 ${COMMIT_MSG}"
+          fi
+
+          # ── Obfuscation Check ──
+          OBF_STATUS="❌ Raw"
+          FIRST_LINE=$(head -c 200 script/aimbot 2>/dev/null || echo "")
+          if echo "$FIRST_LINE" | grep -qiP "wearedevs|obfuscat"; then
+            OBF_STATUS="🔒 JJSploit"
+          elif echo "$FIRST_LINE" | grep -qiP "return\(function"; then
+            OBF_STATUS="🔒 Obfuscated"
+          fi
+
+          # ── Truncate safety ──
+          if [ ${#CHANGES} -gt 600 ]; then
+            CHANGES="${CHANGES:0:580}\\n..."
+          fi
+
+          # ── Send Embed ──
           PAYLOAD=$(cat <<EOF
           {
             "username": "Binxix Hub V6",
             "embeds": [{
-              "title": "📦 Binxix Hub V6 — Update ${VERSION}",
+              "title": "🚀 Binxix Hub V6 — ${VERSION}",
               "url": "${COMMIT_URL}",
               "color": 10181558,
-              "description": "### Latest Commit\n**${COMMIT_MSG}**\n",
+              "description": "**${COMMIT_MSG}**\n\n${CHANGES}\n\n📄 \`script/aimbot\` — ${LINE_INFO}",
               "fields": [
                 {
-                  "name": "📋 Changelog",
-                  "value": "${CHANGELOG}",
-                  "inline": false
-                },
-                {
-                  "name": "🔍 Script Changes",
-                  "value": "${SCRIPT_CHANGES}",
-                  "inline": false
-                },
-                {
-                  "name": "📁 File Changes",
-                  "value": "✅ ${ADDED} added  •  ✏️ ${MODIFIED} modified  •  🗑️ ${REMOVED} removed",
-                  "inline": false
-                },
-                {
-                  "name": "🏷️ Version",
+                  "name": "Version",
                   "value": "\`${VERSION}\`",
                   "inline": true
                 },
                 {
-                  "name": "🔗 Commit",
-                  "value": "\`${SHORT_SHA}\`",
+                  "name": "Commit",
+                  "value": "[\`${SHORT_SHA}\`](${COMMIT_URL})",
                   "inline": true
                 },
                 {
-                  "name": "🌿 Branch",
-                  "value": "\`${BRANCH}\`",
-                  "inline": true
-                },
-                {
-                  "name": "👤 Pushed by",
-                  "value": "${AUTHOR}",
-                  "inline": true
-                },
-                {
-                  "name": "📊 Commits",
-                  "value": "\`${COMMIT_COUNT}\`",
-                  "inline": true
-                },
-                {
-                  "name": "🔒 Obfuscated",
-                  "value": "${OBFUSCATED}",
+                  "name": "Status",
+                  "value": "${OBF_STATUS}",
                   "inline": true
                 }
               ],
               "footer": {
-                "text": "Binxix Hub Updates  •  ${REPO}"
+                "text": "Binxix Hub Updates • ${AUTHOR}"
               },
               "timestamp": "${TIMESTAMP}"
             }]
@@ -311,14 +130,8 @@ jobs:
           if [ "$HTTP_CODE" = "204" ] || [ "$HTTP_CODE" = "200" ]; then
             echo "✅ Discord notification sent!"
           else
-            echo "⚠️ Discord returned HTTP $HTTP_CODE — sending fallback"
-            FALLBACK=$(cat <<EOF2
-            {
-              "username": "Binxix Hub V6",
-              "content": "📦 **Update ${VERSION}** — ${COMMIT_MSG}\n🔗 ${COMMIT_URL}\n📁 +${ADDED} added, ✏️ ${MODIFIED} modified, 🗑️ ${REMOVED} removed"
-            }
-          EOF2
-            )
+            echo "⚠️ HTTP $HTTP_CODE — sending fallback"
+            FALLBACK='{"username":"Binxix Hub V6","content":"🚀 **Update '"${VERSION}"'** — '"${COMMIT_MSG}"'\n🔗 '"${COMMIT_URL}"'"}'
             curl -s -H "Content-Type: application/json" -d "$FALLBACK" "$DISCORD_WEBHOOK"
-            echo "✅ Fallback notification sent!"
+            echo "✅ Fallback sent"
           fi
