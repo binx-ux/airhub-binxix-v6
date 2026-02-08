@@ -247,9 +247,11 @@ local Settings = {
         TriggerBot = false,
         TriggerBotDelay = 0.05,
         TriggerBotFOV = 50,
-        SilentAim = false,
-        SilentAimFOV = 150,
-        SilentAimLockPart = "Head",
+        FastReload = false,
+        FastFireRate = false,
+        AlwaysAuto = false,
+        NoSpread = false,
+        NoRecoil = false,
     },
     StreamerMode = {
         Enabled = false,
@@ -951,6 +953,14 @@ end
 local targetHighlight = nil
 
 local function updateTargetMarker()
+    -- Hide lock marker when Streamer Mode is on
+    if Settings.StreamerMode.Enabled then
+        if targetHighlight then
+            targetHighlight.Parent = nil
+        end
+        return
+    end
+    
     if currentTarget and currentTarget.Character and isTracking then
         if not targetHighlight then
             targetHighlight = Instance.new("Highlight")
@@ -1073,7 +1083,12 @@ local function createAirHubStyleGUI()
         if isUnloading or _G.BinxixUnloaded then return end
         local radius = Settings.Aimbot.FOVRadius
         fovCircle.Size = UDim2.new(0, radius * 2, 0, radius * 2)
-        fovCircle.Visible = Settings.Aimbot.Enabled and Settings.Aimbot.ShowFOV
+        -- Hide FOV circle when Streamer Mode is on
+        if Settings.StreamerMode.Enabled then
+            fovCircle.Visible = false
+        else
+            fovCircle.Visible = Settings.Aimbot.Enabled and Settings.Aimbot.ShowFOV
+        end
         fovStroke.Transparency = 1 - Settings.Aimbot.FOVOpacity
     end)
     table.insert(allConnections, fovUpdateConn)
@@ -2353,37 +2368,45 @@ local function createAirHubStyleGUI()
     end)
     
     -- ========================================
-    -- COMBAT SECTION (Kill Aura + Trigger Bot)
+    -- GUN MODS SECTION (replaces Kill Aura / Trigger Bot)
     -- ========================================
-    createSectionHeader(generalPage, "Combat", 0, 260)
+    createSectionHeader(generalPage, "Gun Mods", 0, 260)
     
-    createCheckbox(generalPage, "Kill Aura", 0, 280, false, function(e)
-        Settings.Combat.KillAura = e
-        sendNotification("Kill Aura", e and "Enabled — auto attacking nearby enemies" or "Disabled", 2)
+    -- WIP / Lag warning
+    local gunModWarnLabel = Instance.new("TextLabel")
+    gunModWarnLabel.Size = UDim2.new(0, 210, 0, 14)
+    gunModWarnLabel.Position = UDim2.new(0, 0, 0, 278)
+    gunModWarnLabel.BackgroundTransparency = 1
+    gunModWarnLabel.Text = "⚠ May lead to lag — WIP"
+    gunModWarnLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
+    gunModWarnLabel.TextSize = 10
+    gunModWarnLabel.Font = Enum.Font.SourceSansItalic
+    gunModWarnLabel.TextXAlignment = Enum.TextXAlignment.Left
+    gunModWarnLabel.Parent = generalPage
+    
+    createCheckbox(generalPage, "Fast Reload", 0, 295, false, function(e)
+        Settings.Combat.FastReload = e
+        sendNotification("Gun Mods", e and "Fast Reload enabled" or "Fast Reload disabled", 2)
     end)
-    createSlider(generalPage, "Aura Range", 0, 300, 5, 30, 15, function(v)
-        Settings.Combat.KillAuraRange = v
+    createCheckbox(generalPage, "Fast Fire Rate", 0, 315, false, function(e)
+        Settings.Combat.FastFireRate = e
+        sendNotification("Gun Mods", e and "Fast Fire Rate enabled" or "Fast Fire Rate disabled", 2)
     end)
-    createSlider(generalPage, "Aura Speed", 0, 340, 0.05, 0.5, 0.15, function(v)
-        Settings.Combat.KillAuraSpeed = v
+    createCheckbox(generalPage, "Always Auto", 0, 335, false, function(e)
+        Settings.Combat.AlwaysAuto = e
+        sendNotification("Gun Mods", e and "Always Auto enabled" or "Always Auto disabled", 2)
     end)
-    createDropdown(generalPage, "Aura Method", 0, 375, {"Click", "Touch"}, "Click", function(v)
-        Settings.Combat.KillAuraMethod = v
+    createCheckbox(generalPage, "No Spread", 0, 355, false, function(e)
+        Settings.Combat.NoSpread = e
+        sendNotification("Gun Mods", e and "No Spread enabled" or "No Spread disabled", 2)
+    end)
+    createCheckbox(generalPage, "No Recoil", 0, 375, false, function(e)
+        Settings.Combat.NoRecoil = e
+        sendNotification("Gun Mods", e and "No Recoil enabled" or "No Recoil disabled", 2)
     end)
     
-    createCheckbox(generalPage, "Trigger Bot", 0, 415, false, function(e)
-        Settings.Combat.TriggerBot = e
-        sendNotification("Trigger Bot", e and "Enabled — auto fires when crosshair on enemy" or "Disabled", 2)
-    end)
-    createSlider(generalPage, "Trigger Delay (s)", 0, 435, 0, 0.2, 0.05, function(v)
-        Settings.Combat.TriggerBotDelay = v
-    end)
-    createSlider(generalPage, "Trigger FOV", 0, 470, 10, 100, 50, function(v)
-        Settings.Combat.TriggerBotFOV = v
-    end)
-    
-    -- Increase canvas size to fit new content
-    generalPage.CanvasSize = UDim2.new(0, 0, 0, 560)
+    -- Increase canvas size to fit content
+    generalPage.CanvasSize = UDim2.new(0, 0, 0, 500)
     
     -- Auto TP Loop with warning + keybind
     local autoTPToggleKey = Enum.KeyCode.T
@@ -2611,22 +2634,6 @@ local function createAirHubStyleGUI()
     end)
     createSlider(aimbotPage, "Max Distance", 240, 130, 100, 1000, 500, function(v)
         Settings.Aimbot.MaxDistance = v
-    end)
-    
-    -- Silent Aim section (right column, below FOV)
-    createSectionHeader(aimbotPage, "Silent Aim", 240, 175)
-    
-    createCheckbox(aimbotPage, "Silent Aim", 240, 195, false, function(e)
-        Settings.Combat.SilentAim = e
-        sendNotification("Silent Aim", e and "Enabled — bullets redirect to target" or "Disabled", 2)
-    end)
-    
-    createSlider(aimbotPage, "Silent FOV", 240, 215, 50, 400, 150, function(v)
-        Settings.Combat.SilentAimFOV = v
-    end)
-    
-    createDropdown(aimbotPage, "Silent Lock Part", 240, 255, {"Head", "HumanoidRootPart", "UpperTorso", "Torso"}, "Head", function(v)
-        Settings.Combat.SilentAimLockPart = v
     end)
     
     -- ESP TAB
@@ -3267,7 +3274,7 @@ local function createAirHubStyleGUI()
     reportPage.BorderSizePixel = 0
     reportPage.ScrollBarThickness = 4
     reportPage.ScrollBarImageColor3 = Theme.AccentDark
-    reportPage.CanvasSize = UDim2.new(0, 0, 0, 780)
+    reportPage.CanvasSize = UDim2.new(0, 0, 0, 500)
     reportPage.ScrollingDirection = Enum.ScrollingDirection.Y
     reportPage.Parent = contentArea
     tabPages["Report"] = reportPage
@@ -3284,74 +3291,17 @@ local function createAirHubStyleGUI()
     chatSpyInfo.Size = UDim2.new(1, -8, 0, 14)
     chatSpyInfo.Position = UDim2.new(0, 0, 0, 40)
     chatSpyInfo.BackgroundTransparency = 1
-    chatSpyInfo.Text = "Logs all chat messages including whispers & team chat. Also prints to console (F9)."
+    chatSpyInfo.Text = "Logs all chat messages including whispers & team chat. Prints to console (F9)."
     chatSpyInfo.TextColor3 = Theme.TextDim
     chatSpyInfo.TextSize = 10
     chatSpyInfo.Font = Enum.Font.SourceSans
     chatSpyInfo.TextXAlignment = Enum.TextXAlignment.Left
     chatSpyInfo.Parent = reportPage
     
-    -- Chat log display (smaller — 110px instead of 200px)
-    local chatLogContainer = Instance.new("Frame")
-    chatLogContainer.Size = UDim2.new(1, -8, 0, 110)
-    chatLogContainer.Position = UDim2.new(0, 0, 0, 58)
-    chatLogContainer.BackgroundColor3 = Theme.BackgroundDark
-    chatLogContainer.BorderSizePixel = 1
-    chatLogContainer.BorderColor3 = Theme.Border
-    chatLogContainer.ClipsDescendants = true
-    chatLogContainer.Parent = reportPage
-    
-    local chatLogScroll = Instance.new("ScrollingFrame")
-    chatLogScroll.Size = UDim2.new(1, -4, 1, -4)
-    chatLogScroll.Position = UDim2.new(0, 2, 0, 2)
-    chatLogScroll.BackgroundTransparency = 1
-    chatLogScroll.BorderSizePixel = 0
-    chatLogScroll.ScrollBarThickness = 3
-    chatLogScroll.ScrollBarImageColor3 = Theme.AccentDark
-    chatLogScroll.CanvasSize = UDim2.new(0, 0, 0, 2000)
-    chatLogScroll.ScrollingDirection = Enum.ScrollingDirection.Y
-    chatLogScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
-    chatLogScroll.Parent = chatLogContainer
-    
-    chatSpyLogLabel = Instance.new("TextLabel")
-    chatSpyLogLabel.Size = UDim2.new(1, -4, 0, 0)
-    chatSpyLogLabel.Position = UDim2.new(0, 2, 0, 0)
-    chatSpyLogLabel.BackgroundTransparency = 1
-    chatSpyLogLabel.Text = "Chat spy is off. Enable it above to start logging."
-    chatSpyLogLabel.TextColor3 = Theme.TextSecondary
-    chatSpyLogLabel.TextSize = 11
-    chatSpyLogLabel.Font = Enum.Font.Code
-    chatSpyLogLabel.TextXAlignment = Enum.TextXAlignment.Left
-    chatSpyLogLabel.TextYAlignment = Enum.TextYAlignment.Top
-    chatSpyLogLabel.TextWrapped = true
-    chatSpyLogLabel.AutomaticSize = Enum.AutomaticSize.Y
-    chatSpyLogLabel.Parent = chatLogScroll
-    
-    -- Clear chat log button
-    local clearChatBtn = Instance.new("TextButton")
-    clearChatBtn.Size = UDim2.new(0, 80, 0, 20)
-    clearChatBtn.Position = UDim2.new(1, -88, 0, 170)
-    clearChatBtn.BackgroundColor3 = Theme.SliderBackground
-    clearChatBtn.BorderSizePixel = 1
-    clearChatBtn.BorderColor3 = Theme.Border
-    clearChatBtn.Text = "Clear Log"
-    clearChatBtn.TextColor3 = Color3.fromRGB(255, 80, 80)
-    clearChatBtn.TextSize = 11
-    clearChatBtn.Font = Enum.Font.SourceSansBold
-    clearChatBtn.Parent = reportPage
-    
-    clearChatBtn.MouseEnter:Connect(function() clearChatBtn.BackgroundColor3 = Color3.fromRGB(100, 30, 30) end)
-    clearChatBtn.MouseLeave:Connect(function() clearChatBtn.BackgroundColor3 = Theme.SliderBackground end)
-    clearChatBtn.MouseButton1Click:Connect(function()
-        chatSpyLog = {}
-        chatSpyLogLabel.Text = "Log cleared."
-        sendNotification("Chat Spy", "Log cleared", 1)
-    end)
-    
     -- ========================================
     -- SUGGESTION BOX SECTION
     -- ========================================
-    createSectionHeader(reportPage, "Suggestions", 0, 200)
+    createSectionHeader(reportPage, "Suggestions", 0, 60)
     
     -- Detect executor name (used by both suggestion and bug report)
     local function getExecutorName()
@@ -3368,7 +3318,7 @@ local function createAirHubStyleGUI()
     
     local suggestInfo = Instance.new("TextLabel")
     suggestInfo.Size = UDim2.new(1, -8, 0, 14)
-    suggestInfo.Position = UDim2.new(0, 0, 0, 220)
+    suggestInfo.Position = UDim2.new(0, 0, 0, 80)
     suggestInfo.BackgroundTransparency = 1
     suggestInfo.Text = "Have an idea for a new feature? Let us know!"
     suggestInfo.TextColor3 = Theme.TextDim
@@ -3379,7 +3329,7 @@ local function createAirHubStyleGUI()
     
     local suggestInputBox = Instance.new("TextBox")
     suggestInputBox.Size = UDim2.new(1, -8, 0, 60)
-    suggestInputBox.Position = UDim2.new(0, 0, 0, 238)
+    suggestInputBox.Position = UDim2.new(0, 0, 0, 98)
     suggestInputBox.BackgroundColor3 = Theme.BackgroundDark
     suggestInputBox.BorderSizePixel = 1
     suggestInputBox.BorderColor3 = Theme.Border
@@ -3398,7 +3348,7 @@ local function createAirHubStyleGUI()
     
     local sendSuggestBtn = Instance.new("TextButton")
     sendSuggestBtn.Size = UDim2.new(0, 130, 0, 24)
-    sendSuggestBtn.Position = UDim2.new(0, 0, 0, 304)
+    sendSuggestBtn.Position = UDim2.new(0, 0, 0, 164)
     sendSuggestBtn.BackgroundColor3 = Color3.fromRGB(40, 100, 60)
     sendSuggestBtn.BorderSizePixel = 1
     sendSuggestBtn.BorderColor3 = Theme.Border
@@ -3487,12 +3437,12 @@ local function createAirHubStyleGUI()
     -- ========================================
     -- BUG REPORT SECTION
     -- ========================================
-    createSectionHeader(reportPage, "Bug Report", 0, 340)
+    createSectionHeader(reportPage, "Bug Report", 0, 200)
     
     -- Disclaimer
     local disclaimerLabel = Instance.new("TextLabel")
     disclaimerLabel.Size = UDim2.new(1, -8, 0, 28)
-    disclaimerLabel.Position = UDim2.new(0, 0, 0, 360)
+    disclaimerLabel.Position = UDim2.new(0, 0, 0, 220)
     disclaimerLabel.BackgroundColor3 = Color3.fromRGB(40, 35, 20)
     disclaimerLabel.BorderSizePixel = 1
     disclaimerLabel.BorderColor3 = Color3.fromRGB(80, 70, 30)
@@ -3506,7 +3456,7 @@ local function createAirHubStyleGUI()
     -- Bug description input
     local bugInputLabel = Instance.new("TextLabel")
     bugInputLabel.Size = UDim2.new(0, 120, 0, 16)
-    bugInputLabel.Position = UDim2.new(0, 0, 0, 395)
+    bugInputLabel.Position = UDim2.new(0, 0, 0, 255)
     bugInputLabel.BackgroundTransparency = 1
     bugInputLabel.Text = "Describe the bug:"
     bugInputLabel.TextColor3 = Theme.TextSecondary
@@ -3517,7 +3467,7 @@ local function createAirHubStyleGUI()
     
     local bugInputBox = Instance.new("TextBox")
     bugInputBox.Size = UDim2.new(1, -8, 0, 60)
-    bugInputBox.Position = UDim2.new(0, 0, 0, 415)
+    bugInputBox.Position = UDim2.new(0, 0, 0, 275)
     bugInputBox.BackgroundColor3 = Theme.BackgroundDark
     bugInputBox.BorderSizePixel = 1
     bugInputBox.BorderColor3 = Theme.Border
@@ -3537,7 +3487,7 @@ local function createAirHubStyleGUI()
     -- Send report button
     local sendReportBtn = Instance.new("TextButton")
     sendReportBtn.Size = UDim2.new(0, 120, 0, 24)
-    sendReportBtn.Position = UDim2.new(0, 0, 0, 482)
+    sendReportBtn.Position = UDim2.new(0, 0, 0, 342)
     sendReportBtn.BackgroundColor3 = Theme.AccentDark
     sendReportBtn.BorderSizePixel = 1
     sendReportBtn.BorderColor3 = Theme.Border
@@ -3626,22 +3576,22 @@ local function createAirHubStyleGUI()
     -- Report info
     local reportInfoLabel = Instance.new("TextLabel")
     reportInfoLabel.Size = UDim2.new(1, -8, 0, 20)
-    reportInfoLabel.Position = UDim2.new(0, 0, 0, 510)
+    reportInfoLabel.Position = UDim2.new(0, 0, 0, 370)
     reportInfoLabel.BackgroundTransparency = 1
-    reportInfoLabel.Text = "Reports go directly to the Binxix Hub developer. Please be descriptive."
-    reportInfoLabel.TextColor3 = Theme.TextDim
-    reportInfoLabel.TextSize = 10
-    reportInfoLabel.Font = Enum.Font.SourceSans
+    reportInfoLabel.Text = "Pls be descriptive of the bug/problem so we can fix it faster."
+    reportInfoLabel.TextColor3 = Color3.fromRGB(255, 200, 80)
+    reportInfoLabel.TextSize = 13
+    reportInfoLabel.Font = Enum.Font.SourceSansBold
     reportInfoLabel.TextXAlignment = Enum.TextXAlignment.Left
     reportInfoLabel.TextWrapped = true
     reportInfoLabel.Parent = reportPage
     
     -- Discord invite section
-    createSectionHeader(reportPage, "Community", 0, 540)
+    createSectionHeader(reportPage, "Community", 0, 400)
     
     local discordBtn = Instance.new("TextButton")
     discordBtn.Size = UDim2.new(0, 160, 0, 26)
-    discordBtn.Position = UDim2.new(0, 0, 0, 560)
+    discordBtn.Position = UDim2.new(0, 0, 0, 420)
     discordBtn.BackgroundColor3 = Color3.fromRGB(88, 101, 242) -- Discord blurple
     discordBtn.BorderSizePixel = 1
     discordBtn.BorderColor3 = Color3.fromRGB(70, 80, 200)
@@ -3752,7 +3702,7 @@ local function createAirHubStyleGUI()
     infoLabel.Size = UDim2.new(0, 300, 0, 80)
     infoLabel.Position = UDim2.new(0, 0, 0, 115)
     infoLabel.BackgroundTransparency = 1
-    infoLabel.Text = "Binxix Hub V6.3\nAirHub V2 Style Edition\n+ Kill Aura / Trigger Bot / Streamer Mode / Profiles\n\nGame: " .. currentGameData.name .. "\nPlace ID: " .. tostring(currentPlaceId)
+    infoLabel.Text = "Binxix Hub V6.4\nAirHub V2 Style Edition\n+ Gun Mods / Chat Spammer / Streamer Mode / Profiles\n\nGame: " .. currentGameData.name .. "\nPlace ID: " .. tostring(currentPlaceId)
     infoLabel.TextColor3 = Theme.TextSecondary
     infoLabel.TextSize = 11
     infoLabel.Font = Enum.Font.SourceSans
@@ -3778,16 +3728,20 @@ local function createAirHubStyleGUI()
         _G.BinxixUnloaded = true
         Settings.Combat.KillAura = false
         Settings.Combat.TriggerBot = false
-        Settings.Combat.SilentAim = false
         Settings.Misc.ChatSpammer = false
-        silentAimTarget = nil
-        -- Restore __namecall hook
+        -- Disable gun mods and restore values
+        Settings.Combat.FastReload = false
+        Settings.Combat.FastFireRate = false
+        Settings.Combat.AlwaysAuto = false
+        Settings.Combat.NoSpread = false
+        Settings.Combat.NoRecoil = false
         pcall(function()
-            if oldNamecall and getrawmetatable and setreadonly then
-                local mt = getrawmetatable(game)
-                setreadonly(mt, false)
-                mt.__namecall = oldNamecall
-                setreadonly(mt, true)
+            if gunModOriginalValues then
+                for valueName, entries in pairs(gunModOriginalValues) do
+                    for obj, originalVal in pairs(entries) do
+                        pcall(function() obj.Value = originalVal end)
+                    end
+                end
             end
         end)
         stopAutoTPLoop()
@@ -4176,6 +4130,11 @@ local function createAirHubStyleGUI()
     
     local function updateCrosshair()
         local s = Settings.Crosshair
+        -- Hide crosshair when Streamer Mode is on
+        if Settings.StreamerMode.Enabled then
+            crosshairFrame.Visible = false
+            return
+        end
         crosshairFrame.Visible = s.Enabled
         
         if not s.Enabled then return end
@@ -4694,177 +4653,165 @@ local function createAirHubStyleGUI()
     table.insert(allConnections, triggerBotConn)
     
     -- ========================================
-    -- SILENT AIM SYSTEM
+    -- GUN MODS SYSTEM
     -- ========================================
-    -- Hooks __namecall to redirect remote calls (FireServer/InvokeServer)
-    -- so that hit registration goes to the nearest enemy instead of where
-    -- the camera is actually looking. Your camera stays still — the server
-    -- thinks you're aiming at the target.
-    -- ========================================
-    local silentAimTarget = nil
-    local oldNamecall = nil
+    -- Stores original weapon values so they can be restored when toggled off
+    local gunModOriginalValues = {
+        FireRate = {},
+        ReloadTime = {},
+        EReloadTime = {},
+        Auto = {},
+        Spread = {},
+        Recoil = {},
+    }
     
-    -- Silent aim target finder (runs every frame)
-    local silentAimConn = RunService.Heartbeat:Connect(function()
+    local lastGunModCheck = 0
+    local GUN_MOD_INTERVAL = 0.5 -- only scan weapons every 0.5s to save performance
+    
+    local gunModConn = RunService.Heartbeat:Connect(function()
         if isUnloading or _G.BinxixUnloaded then return end
-        if not Settings.Combat.SilentAim then
-            silentAimTarget = nil
-            return
-        end
         
-        local camera = Workspace.CurrentCamera
-        if not camera then silentAimTarget = nil return end
+        local now = tick()
+        if now - lastGunModCheck < GUN_MOD_INTERVAL then return end
+        lastGunModCheck = now
         
-        local myChar = player.Character
-        if not myChar then silentAimTarget = nil return end
-        local myHRP = myChar:FindFirstChild("HumanoidRootPart")
-        if not myHRP then silentAimTarget = nil return end
+        -- Check if any gun mod is enabled
+        local anyEnabled = Settings.Combat.FastReload or Settings.Combat.FastFireRate
+            or Settings.Combat.AlwaysAuto or Settings.Combat.NoSpread or Settings.Combat.NoRecoil
+        if not anyEnabled then return end
         
-        local screenCenter = camera.ViewportSize / 2
-        local silentFOV = Settings.Combat.SilentAimFOV
-        local lockPart = Settings.Combat.SilentAimLockPart
-        local maxDist = Settings.Aimbot.MaxDistance
+        -- Find weapons folder
+        local weapons = game:GetService("ReplicatedStorage"):FindFirstChild("Weapons")
+        if not weapons then return end
         
-        local bestTarget = nil
-        local bestScreenDist = math.huge
-        
-        for _, target in ipairs(Players:GetPlayers()) do
-            if isValidTarget(player, target) then
-                local targetChar = target.Character
-                if targetChar then
-                    local targetHumanoid = targetChar:FindFirstChild("Humanoid")
-                    local targetHRP = targetChar:FindFirstChild("HumanoidRootPart")
-                    
-                    if targetHumanoid and targetHumanoid.Health > 0 and targetHRP then
-                        local worldDist = (myHRP.Position - targetHRP.Position).Magnitude
-                        if worldDist <= maxDist then
-                            local targetPart = targetChar:FindFirstChild(lockPart) or targetChar:FindFirstChild("Head") or targetHRP
-                            if targetPart then
-                                local screenPos, onScreen = camera:WorldToViewportPoint(targetPart.Position)
-                                if onScreen and screenPos.Z > 0 then
-                                    local screenDist = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
-                                    if screenDist <= silentFOV and screenDist < bestScreenDist then
-                                        bestScreenDist = screenDist
-                                        bestTarget = targetPart
-                                    end
-                                end
-                            end
-                        end
+        -- Fast Reload
+        if Settings.Combat.FastReload then
+            for _, v in pairs(weapons:GetChildren()) do
+                if v:FindFirstChild("ReloadTime") then
+                    if not gunModOriginalValues.ReloadTime[v] then
+                        gunModOriginalValues.ReloadTime[v] = v.ReloadTime.Value
+                    end
+                    if v.ReloadTime.Value ~= 0.01 then
+                        v.ReloadTime.Value = 0.01
+                    end
+                end
+                if v:FindFirstChild("EReloadTime") then
+                    if not gunModOriginalValues.EReloadTime[v] then
+                        gunModOriginalValues.EReloadTime[v] = v.EReloadTime.Value
+                    end
+                    if v.EReloadTime.Value ~= 0.01 then
+                        v.EReloadTime.Value = 0.01
                     end
                 end
             end
         end
         
-        silentAimTarget = bestTarget
-    end)
-    table.insert(allConnections, silentAimConn)
-    
-    -- Hook __namecall to redirect mouse.Hit and remote arguments
-    pcall(function()
-        if getrawmetatable and setreadonly and newcclosure then
-            local mt = getrawmetatable(game)
-            local oldNC = mt.__namecall
-            oldNamecall = oldNC
-            
-            setreadonly(mt, false)
-            mt.__namecall = newcclosure(function(self, ...)
-                if isUnloading or _G.BinxixUnloaded then
-                    return oldNC(self, ...)
-                end
-                
-                if Settings.Combat.SilentAim and silentAimTarget then
-                    local method = getnamecallmethod()
-                    
-                    -- Hook FireServer / InvokeServer calls
-                    if method == "FireServer" or method == "InvokeServer" then
-                        local args = {...}
-                        local modified = false
-                        
-                        for i, arg in ipairs(args) do
-                            if typeof(arg) == "Vector3" then
-                                -- Replace Vector3 positions with target position
-                                local targetPos = silentAimTarget.Position
-                                if Settings.Aimbot.Prediction then
-                                    local targetChar = silentAimTarget.Parent
-                                    if targetChar then
-                                        local hrp = targetChar:FindFirstChild("HumanoidRootPart")
-                                        if hrp then
-                                            targetPos = targetPos + (hrp.AssemblyLinearVelocity * Settings.Aimbot.PredictionAmount)
-                                        end
-                                    end
-                                end
-                                args[i] = targetPos
-                                modified = true
-                            elseif typeof(arg) == "CFrame" then
-                                -- Replace CFrame with one looking at target
-                                local camera = Workspace.CurrentCamera
-                                if camera then
-                                    local targetPos = silentAimTarget.Position
-                                    if Settings.Aimbot.Prediction then
-                                        local targetChar = silentAimTarget.Parent
-                                        if targetChar then
-                                            local hrp = targetChar:FindFirstChild("HumanoidRootPart")
-                                            if hrp then
-                                                targetPos = targetPos + (hrp.AssemblyLinearVelocity * Settings.Aimbot.PredictionAmount)
-                                            end
-                                        end
-                                    end
-                                    args[i] = CFrame.new(camera.CFrame.Position, targetPos)
-                                    modified = true
-                                end
-                            end
-                        end
-                        
-                        if modified then
-                            return oldNC(self, unpack(args))
-                        end
+        -- Fast Fire Rate
+        if Settings.Combat.FastFireRate then
+            for _, v in pairs(weapons:GetDescendants()) do
+                if v.Name == "FireRate" or v.Name == "BFireRate" then
+                    if not gunModOriginalValues.FireRate[v] then
+                        gunModOriginalValues.FireRate[v] = v.Value
+                    end
+                    if v.Value ~= 0.02 then
+                        v.Value = 0.02
                     end
                 end
-                
-                return oldNC(self, ...)
-            end)
-            setreadonly(mt, true)
+            end
         end
-    end)
-    
-    -- Also hook mouse.Hit for games that use mouse position
-    pcall(function()
-        if getrawmetatable and setreadonly and newcclosure then
-            local mt = getrawmetatable(game)
-            local oldIndex = mt.__index
-            
-            setreadonly(mt, false)
-            local originalIndex = oldIndex
-            mt.__index = newcclosure(function(self, key)
-                if isUnloading or _G.BinxixUnloaded then
-                    return originalIndex(self, key)
-                end
-                
-                if Settings.Combat.SilentAim and silentAimTarget then
-                    if tostring(self) == "Mouse" then
-                        if key == "Hit" then
-                            local targetPos = silentAimTarget.Position
-                            if Settings.Aimbot.Prediction then
-                                local targetChar = silentAimTarget.Parent
-                                if targetChar then
-                                    local hrp = targetChar:FindFirstChild("HumanoidRootPart")
-                                    if hrp then
-                                        targetPos = targetPos + (hrp.AssemblyLinearVelocity * Settings.Aimbot.PredictionAmount)
-                                    end
-                                end
-                            end
-                            return CFrame.new(targetPos)
-                        elseif key == "Target" then
-                            return silentAimTarget
-                        end
+        
+        -- Always Auto
+        if Settings.Combat.AlwaysAuto then
+            for _, v in pairs(weapons:GetDescendants()) do
+                if v.Name == "Auto" or v.Name == "AutoFire" or v.Name == "Automatic" or v.Name == "AutoShoot" or v.Name == "AutoGun" then
+                    if not gunModOriginalValues.Auto[v] then
+                        gunModOriginalValues.Auto[v] = v.Value
+                    end
+                    if v.Value ~= true then
+                        v.Value = true
                     end
                 end
-                
-                return originalIndex(self, key)
-            end)
-            setreadonly(mt, true)
+            end
+        end
+        
+        -- No Spread
+        if Settings.Combat.NoSpread then
+            for _, v in pairs(weapons:GetDescendants()) do
+                if v.Name == "MaxSpread" or v.Name == "Spread" or v.Name == "SpreadControl" then
+                    if not gunModOriginalValues.Spread[v] then
+                        gunModOriginalValues.Spread[v] = v.Value
+                    end
+                    if v.Value ~= 0 then
+                        v.Value = 0
+                    end
+                end
+            end
+        end
+        
+        -- No Recoil
+        if Settings.Combat.NoRecoil then
+            for _, v in pairs(weapons:GetDescendants()) do
+                if v.Name == "RecoilControl" or v.Name == "Recoil" then
+                    if not gunModOriginalValues.Recoil[v] then
+                        gunModOriginalValues.Recoil[v] = v.Value
+                    end
+                    if v.Value ~= 0 then
+                        v.Value = 0
+                    end
+                end
+            end
         end
     end)
+    table.insert(allConnections, gunModConn)
+    
+    -- Restore values when individual gun mods are toggled off
+    local gunModRestoreConn = RunService.Heartbeat:Connect(function()
+        if isUnloading or _G.BinxixUnloaded then return end
+        
+        -- Only restore when a mod was just turned off (check once per second)
+        local now = tick()
+        if now - lastGunModCheck < GUN_MOD_INTERVAL then return end
+        
+        if not Settings.Combat.FastReload then
+            for obj, val in pairs(gunModOriginalValues.ReloadTime) do
+                pcall(function() if obj and obj.Parent then obj.Value = val end end)
+            end
+            gunModOriginalValues.ReloadTime = {}
+            for obj, val in pairs(gunModOriginalValues.EReloadTime) do
+                pcall(function() if obj and obj.Parent then obj.Value = val end end)
+            end
+            gunModOriginalValues.EReloadTime = {}
+        end
+        
+        if not Settings.Combat.FastFireRate then
+            for obj, val in pairs(gunModOriginalValues.FireRate) do
+                pcall(function() if obj and obj.Parent then obj.Value = val end end)
+            end
+            gunModOriginalValues.FireRate = {}
+        end
+        
+        if not Settings.Combat.AlwaysAuto then
+            for obj, val in pairs(gunModOriginalValues.Auto) do
+                pcall(function() if obj and obj.Parent then obj.Value = val end end)
+            end
+            gunModOriginalValues.Auto = {}
+        end
+        
+        if not Settings.Combat.NoSpread then
+            for obj, val in pairs(gunModOriginalValues.Spread) do
+                pcall(function() if obj and obj.Parent then obj.Value = val end end)
+            end
+            gunModOriginalValues.Spread = {}
+        end
+        
+        if not Settings.Combat.NoRecoil then
+            for obj, val in pairs(gunModOriginalValues.Recoil) do
+                pcall(function() if obj and obj.Parent then obj.Value = val end end)
+            end
+            gunModOriginalValues.Recoil = {}
+        end
+    end)
+    table.insert(allConnections, gunModRestoreConn)
     
     -- ========================================
     -- CHAT SPAMMER SYSTEM
