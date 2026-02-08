@@ -3,8 +3,6 @@ name: Discord Update Notification
 on:
   push:
     branches: [main]
-    paths:
-      - 'script/aimbot'
 
 jobs:
   notify:
@@ -29,65 +27,226 @@ jobs:
           COMMIT_URL="${{ github.event.head_commit.url }}"
           REPO="${{ github.repository }}"
           TIMESTAMP="${{ github.event.head_commit.timestamp }}"
-
-          # Version from hash
           HASH_NUM=$((16#${COMMIT_SHA:0:4} % 1000))
           VERSION="v6.${HASH_NUM}"
 
-          # ── Line Changes ──
           PARENT_SHA=$(git rev-parse HEAD~1 2>/dev/null || echo "")
-          LINE_INFO="Unknown"
-          if [ -n "$PARENT_SHA" ]; then
-            STATS=$(git diff --numstat "$PARENT_SHA" HEAD -- script/aimbot 2>/dev/null | awk '{print $1, $2}')
-            if [ -n "$STATS" ]; then
-              INS=$(echo "$STATS" | awk '{print $1}')
-              DEL=$(echo "$STATS" | awk '{print $2}')
-              LINE_INFO="+${INS} / -${DEL} lines"
+
+          # ══════════════════════════════════════════
+          # FIND THE MAIN LUA SOURCE FILE
+          # Priority: source/*.lua > src/*.lua > *.lua in root
+          # ══════════════════════════════════════════
+          SOURCE_FILE=""
+          for pattern in "source/*.lua" "src/*.lua" "*.lua"; do
+            for f in $pattern; do
+              if [ -f "$f" ]; then
+                SOURCE_FILE="$f"
+                break 2
+              fi
+            done
+          done
+
+          CHANGES=""
+          STATS_LINE=""
+
+          if [ -n "$SOURCE_FILE" ] && [ -n "$PARENT_SHA" ]; then
+            # Check if this file actually changed
+            if git diff --name-only "$PARENT_SHA" HEAD | grep -qF "$SOURCE_FILE"; then
+
+              # ── Line stats ──
+              INS=$(git diff --numstat "$PARENT_SHA" HEAD -- "$SOURCE_FILE" | awk '{print $1}')
+              DEL=$(git diff --numstat "$PARENT_SHA" HEAD -- "$SOURCE_FILE" | awk '{print $2}')
+              STATS_LINE="📄 \`${SOURCE_FILE}\` — **+${INS:-0}** / **-${DEL:-0}** lines"
+
+              # Get only added lines (lines starting with +, skip +++ header)
+              ADDED_LINES=$(git diff "$PARENT_SHA" HEAD -- "$SOURCE_FILE" | grep "^+" | grep -v "^+++" || true)
+              # Get only removed lines
+              REMOVED_LINES=$(git diff "$PARENT_SHA" HEAD -- "$SOURCE_FILE" | grep "^-" | grep -v "^---" || true)
+
+              # ══════════════════════════════════════
+              # NEW GAMES ADDED
+              # Looks for: [placeId] = {name = "GameName"
+              # ══════════════════════════════════════
+              NEW_GAMES=$(echo "$ADDED_LINES" | grep -oP '\{name\s*=\s*"\K[^"]+' 2>/dev/null | head -5 || true)
+              if [ -n "$NEW_GAMES" ]; then
+                GAME_LIST=""
+                while IFS= read -r g; do
+                  [ -n "$g" ] && GAME_LIST="${GAME_LIST}\`${g}\` "
+                done <<< "$NEW_GAMES"
+                [ -n "$GAME_LIST" ] && CHANGES="${CHANGES}🎮 **New Games:** ${GAME_LIST}\n"
+              fi
+
+              # ══════════════════════════════════════
+              # NEW FUNCTIONS
+              # ══════════════════════════════════════
+              NEW_FUNCS=$(echo "$ADDED_LINES" | grep -oP '(?:local\s+)?function\s+\K\w+' 2>/dev/null | sort -u | head -10 || true)
+              if [ -n "$NEW_FUNCS" ]; then
+                FUNC_LIST=""
+                while IFS= read -r f; do
+                  [ -n "$f" ] && FUNC_LIST="${FUNC_LIST}\`${f}\` "
+                done <<< "$NEW_FUNCS"
+                [ -n "$FUNC_LIST" ] && CHANGES="${CHANGES}🆕 **New Functions:** ${FUNC_LIST}\n"
+              fi
+
+              # ══════════════════════════════════════
+              # REMOVED FUNCTIONS
+              # ══════════════════════════════════════
+              REMOVED_FUNCS=$(echo "$REMOVED_LINES" | grep -oP '(?:local\s+)?function\s+\K\w+' 2>/dev/null | sort -u | head -10 || true)
+              if [ -n "$REMOVED_FUNCS" ]; then
+                ACTUALLY_REMOVED=""
+                while IFS= read -r rf; do
+                  if [ -n "$rf" ] && ! echo "$NEW_FUNCS" | grep -qxF "$rf"; then
+                    ACTUALLY_REMOVED="${ACTUALLY_REMOVED}\`${rf}\` "
+                  fi
+                done <<< "$REMOVED_FUNCS"
+                [ -n "$ACTUALLY_REMOVED" ] && CHANGES="${CHANGES}🗑️ **Removed Functions:** ${ACTUALLY_REMOVED}\n"
+              fi
+
+              # ══════════════════════════════════════
+              # NEW SETTINGS / CONFIG VALUES
+              # Looks for indented: SettingName = value,
+              # ══════════════════════════════════════
+              NEW_SETTINGS=$(echo "$ADDED_LINES" | grep -P '^\+\s{4,}\w+\s*=' 2>/dev/null | grep -oP '^\+\s+\K\w+' 2>/dev/null | sort -u | head -12 || true)
+              if [ -n "$NEW_SETTINGS" ]; then
+                SETTING_LIST=""
+                COUNT=0
+                while IFS= read -r s; do
+                  if [ -n "$s" ] && [[ ! "$s" =~ ^(local|if|for|while|end|return|then|else|elseif|do|function|true|false|nil|Size|Position|Parent|Text|Name|BackgroundColor3|TextColor3|BorderSizePixel|Font|TextSize)$ ]]; then
+                    SETTING_LIST="${SETTING_LIST}\`${s}\` "
+                    COUNT=$((COUNT + 1))
+                    [ $COUNT -ge 10 ] && break
+                  fi
+                done <<< "$NEW_SETTINGS"
+                [ -n "$SETTING_LIST" ] && CHANGES="${CHANGES}⚙️ **New Settings:** ${SETTING_LIST}\n"
+              fi
+
+              # ══════════════════════════════════════
+              # NEW GUI ELEMENTS
+              # ══════════════════════════════════════
+              NEW_CHECKBOXES=$(echo "$ADDED_LINES" | grep -oP 'createCheckbox\(\w+,\s*"\K[^"]+' 2>/dev/null | head -8 || true)
+              if [ -n "$NEW_CHECKBOXES" ]; then
+                CB_LIST=""
+                while IFS= read -r cb; do
+                  [ -n "$cb" ] && CB_LIST="${CB_LIST}• ${cb}\n"
+                done <<< "$NEW_CHECKBOXES"
+                [ -n "$CB_LIST" ] && CHANGES="${CHANGES}✅ **New Toggles:**\n${CB_LIST}"
+              fi
+
+              NEW_SLIDERS=$(echo "$ADDED_LINES" | grep -oP 'createSlider\(\w+,\s*"\K[^"]+' 2>/dev/null | head -6 || true)
+              if [ -n "$NEW_SLIDERS" ]; then
+                SL_LIST=""
+                while IFS= read -r sl; do
+                  [ -n "$sl" ] && SL_LIST="${SL_LIST}• ${sl}\n"
+                done <<< "$NEW_SLIDERS"
+                [ -n "$SL_LIST" ] && CHANGES="${CHANGES}🎚️ **New Sliders:**\n${SL_LIST}"
+              fi
+
+              NEW_DROPDOWNS=$(echo "$ADDED_LINES" | grep -oP 'createDropdown\(\w+,\s*"\K[^"]+' 2>/dev/null | head -4 || true)
+              if [ -n "$NEW_DROPDOWNS" ]; then
+                DD_LIST=""
+                while IFS= read -r dd; do
+                  [ -n "$dd" ] && DD_LIST="${DD_LIST}• ${dd}\n"
+                done <<< "$NEW_DROPDOWNS"
+                [ -n "$DD_LIST" ] && CHANGES="${CHANGES}📋 **New Dropdowns:**\n${DD_LIST}"
+              fi
+
+              NEW_SECTIONS=$(echo "$ADDED_LINES" | grep -oP 'createSectionHeader\(\w+,\s*"\K[^"]+' 2>/dev/null | head -5 || true)
+              if [ -n "$NEW_SECTIONS" ]; then
+                SEC_LIST=""
+                while IFS= read -r sec; do
+                  [ -n "$sec" ] && SEC_LIST="${SEC_LIST}\`${sec}\` "
+                done <<< "$NEW_SECTIONS"
+                [ -n "$SEC_LIST" ] && CHANGES="${CHANGES}📂 **New Sections:** ${SEC_LIST}\n"
+              fi
+
+              # ══════════════════════════════════════
+              # NEW THEMES
+              # ══════════════════════════════════════
+              if echo "$ADDED_LINES" | grep -qP "Background\s*=\s*Color3"; then
+                NEW_THEMES=$(echo "$ADDED_LINES" | grep -oP '^\+\s{4}\K\w+(?=\s*=\s*\{)' 2>/dev/null | head -5 || true)
+                if [ -n "$NEW_THEMES" ]; then
+                  THEME_LIST=""
+                  while IFS= read -r t; do
+                    [ -n "$t" ] && THEME_LIST="${THEME_LIST}\`${t}\` "
+                  done <<< "$NEW_THEMES"
+                  [ -n "$THEME_LIST" ] && CHANGES="${CHANGES}🎨 **New Themes:** ${THEME_LIST}\n"
+                fi
+              fi
+
+              # ══════════════════════════════════════
+              # WIP FLAGS
+              # ══════════════════════════════════════
+              NEW_WIP=$(echo "$ADDED_LINES" | grep -c 'wip\s*=\s*true' 2>/dev/null || echo "0")
+              [ "$NEW_WIP" -gt 0 ] && CHANGES="${CHANGES}🚧 **WIP flags added:** ${NEW_WIP} game(s)\n"
+
+              # ══════════════════════════════════════
+              # EXTERNAL SCRIPT LINKS
+              # ══════════════════════════════════════
+              NEW_LOADSCRIPT=$(echo "$ADDED_LINES" | grep -oP 'loadScript\s*=\s*"\K[^"]+' 2>/dev/null | head -3 || true)
+              if [ -n "$NEW_LOADSCRIPT" ]; then
+                LS_LIST=""
+                while IFS= read -r ls; do
+                  [ -n "$ls" ] && LS_LIST="${LS_LIST}• \`${ls}\`\n"
+                done <<< "$NEW_LOADSCRIPT"
+                [ -n "$LS_LIST" ] && CHANGES="${CHANGES}📜 **New External Scripts:**\n${LS_LIST}"
+              fi
+
+              # ══════════════════════════════════════
+              # NEW EVENT CONNECTIONS (if significant)
+              # ══════════════════════════════════════
+              NEW_CONNS=$(echo "$ADDED_LINES" | grep -c ":Connect(function" 2>/dev/null || echo "0")
+              [ "$NEW_CONNS" -gt 3 ] && CHANGES="${CHANGES}⚡ **New event hooks:** ${NEW_CONNS} connections\n"
+
+            else
+              STATS_LINE="📄 \`${SOURCE_FILE}\` — no changes"
             fi
           fi
 
-          # ── Auto-Detect Changes from Commit Message ──
-          # Write commits like: "Add Kill Aura, update ESP, fix tracer lag"
-          # Or: "New: Streamer Mode, Profile System | Fix: skeleton ESP"
-          CHANGES=""
-
-          # Extract features from commit message
-          FEATURES=$(echo "$COMMIT_MSG" | grep -oiP "(?:add|new|update|improve|rework|fix|remove|tweak|buff|nerf|rework)[:\s]+[^,.|]+" 2>/dev/null | head -8 || true)
-          if [ -n "$FEATURES" ]; then
-            while IFS= read -r feat; do
-              if [ -n "$feat" ]; then
-                # Capitalize first letter and clean up
-                CLEAN=$(echo "$feat" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
-                ICON="🔧"
-                echo "$CLEAN" | grep -qiP "^(add|new)" && ICON="✨"
-                echo "$CLEAN" | grep -qiP "^fix" && ICON="🐛"
-                echo "$CLEAN" | grep -qiP "^remove" && ICON="🗑️"
-                echo "$CLEAN" | grep -qiP "^(update|improve|rework|tweak)" && ICON="⚡"
-                CHANGES="${CHANGES}${ICON} ${CLEAN}\n"
+          # ══════════════════════════════════════════
+          # ALSO CHECK script/* (obfuscated builds)
+          # ══════════════════════════════════════════
+          OBF_CHANGES=""
+          if [ -n "$PARENT_SHA" ]; then
+            for FILE in $(git diff --name-only "$PARENT_SHA" HEAD 2>/dev/null); do
+              if [[ "$FILE" == script/* ]]; then
+                OBF_INS=$(git diff --numstat "$PARENT_SHA" HEAD -- "$FILE" | awk '{print $1}')
+                OBF_DEL=$(git diff --numstat "$PARENT_SHA" HEAD -- "$FILE" | awk '{print $2}')
+                OBF_TAG=""
+                if [ -f "$FILE" ]; then
+                  FIRST=$(head -c 200 "$FILE" 2>/dev/null || echo "")
+                  if echo "$FIRST" | grep -qiP "wearedevs|obfuscat"; then
+                    OBF_TAG=" 🔒 JJSploit"
+                  elif echo "$FIRST" | grep -qiP "return\(function"; then
+                    OBF_TAG=" 🔒 Obfuscated"
+                  fi
+                fi
+                OBF_CHANGES="${OBF_CHANGES}📦 \`${FILE}\` — +${OBF_INS:-0} / -${OBF_DEL:-0}${OBF_TAG}\n"
               fi
-            done <<< "$FEATURES"
+            done
           fi
 
-          # If no parseable features, just show commit message
-          if [ -z "$CHANGES" ]; then
-            CHANGES="🔧 ${COMMIT_MSG}"
+          # ══════════════════════════════════════════
+          # BUILD DESCRIPTION
+          # ══════════════════════════════════════════
+          DESC="**${COMMIT_MSG}**\n"
+
+          [ -n "$STATS_LINE" ] && DESC="${DESC}\n${STATS_LINE}\n"
+          [ -n "$OBF_CHANGES" ] && DESC="${DESC}${OBF_CHANGES}"
+          [ -n "$CHANGES" ] && DESC="${DESC}\n${CHANGES}"
+
+          # If nothing detected at all
+          if [ -z "$STATS_LINE" ] && [ -z "$OBF_CHANGES" ] && [ -z "$CHANGES" ]; then
+            DESC="${DESC}\n🔧 Config/docs update"
           fi
 
-          # ── Obfuscation Check ──
-          OBF_STATUS="❌ Raw"
-          FIRST_LINE=$(head -c 200 script/aimbot 2>/dev/null || echo "")
-          if echo "$FIRST_LINE" | grep -qiP "wearedevs|obfuscat"; then
-            OBF_STATUS="🔒 JJSploit"
-          elif echo "$FIRST_LINE" | grep -qiP "return\(function"; then
-            OBF_STATUS="🔒 Obfuscated"
+          # Truncate for Discord 4096 char embed limit
+          if [ ${#DESC} -gt 3800 ]; then
+            DESC="${DESC:0:3750}\n\n... and more"
           fi
 
-          # ── Truncate safety ──
-          if [ ${#CHANGES} -gt 600 ]; then
-            CHANGES="${CHANGES:0:580}\\n..."
-          fi
-
-          # ── Send Embed ──
+          # ══════════════════════════════════════════
+          # SEND TO DISCORD
+          # ══════════════════════════════════════════
           PAYLOAD=$(cat <<EOF
           {
             "username": "Binxix Hub V6",
@@ -95,7 +254,7 @@ jobs:
               "title": "🚀 Binxix Hub V6 — ${VERSION}",
               "url": "${COMMIT_URL}",
               "color": 10181558,
-              "description": "**${COMMIT_MSG}**\n\n${CHANGES}\n\n📄 \`script/aimbot\` — ${LINE_INFO}",
+              "description": "${DESC}",
               "fields": [
                 {
                   "name": "Version",
@@ -108,13 +267,13 @@ jobs:
                   "inline": true
                 },
                 {
-                  "name": "Status",
-                  "value": "${OBF_STATUS}",
+                  "name": "Pushed by",
+                  "value": "${AUTHOR}",
                   "inline": true
                 }
               ],
               "footer": {
-                "text": "Binxix Hub Updates • ${AUTHOR}"
+                "text": "Binxix Hub Updates • ${REPO}"
               },
               "timestamp": "${TIMESTAMP}"
             }]
