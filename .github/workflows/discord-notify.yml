@@ -7,13 +7,16 @@ on:
 jobs:
   notify:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
         with:
           fetch-depth: 2
+          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Send Discord notification
+      - name: Bump version and send Discord notification
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
         run: |
@@ -27,14 +30,38 @@ jobs:
           COMMIT_URL="${{ github.event.head_commit.url }}"
           REPO="${{ github.repository }}"
           TIMESTAMP="${{ github.event.head_commit.timestamp }}"
-          HASH_NUM=$((16#${COMMIT_SHA:0:4} % 1000))
-          VERSION="v6.${HASH_NUM}"
-
           PARENT_SHA=$(git rev-parse HEAD~1 2>/dev/null || echo "")
 
           # ══════════════════════════════════════════
+          # SEQUENTIAL VERSION (from VERSION file)
+          # ══════════════════════════════════════════
+          # Skip if this push is the auto version bump itself
+          if echo "$COMMIT_MSG" | grep -q "^\[auto\] version bump"; then
+            echo "⏭️ Skipping — this is a version bump commit"
+            exit 0
+          fi
+
+          if [ -f "VERSION" ]; then
+            BUILD_NUM=$(cat VERSION | tr -d '[:space:]')
+          else
+            BUILD_NUM=335
+          fi
+
+          BUILD_NUM=$((BUILD_NUM + 1))
+          VERSION="v6.${BUILD_NUM}"
+
+          # Commit the bumped version back to the repo
+          echo "$BUILD_NUM" > VERSION
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add VERSION
+          git commit -m "[auto] version bump to ${VERSION}" || true
+          git push || true
+
+          echo "📦 Version: ${VERSION} (build #${BUILD_NUM})"
+
+          # ══════════════════════════════════════════
           # FIND THE MAIN LUA SOURCE FILE
-          # Priority: source/*.lua > src/*.lua > *.lua in root
           # ══════════════════════════════════════════
           SOURCE_FILE=""
           for pattern in "source/*.lua" "src/*.lua" "*.lua"; do
@@ -50,23 +77,15 @@ jobs:
           STATS_LINE=""
 
           if [ -n "$SOURCE_FILE" ] && [ -n "$PARENT_SHA" ]; then
-            # Check if this file actually changed
-            if git diff --name-only "$PARENT_SHA" HEAD | grep -qF "$SOURCE_FILE"; then
+            if git diff --name-only "$PARENT_SHA" HEAD~1 2>/dev/null | grep -qF "$SOURCE_FILE" || git diff --name-only "$PARENT_SHA" HEAD | grep -qF "$SOURCE_FILE"; then
 
-              # ── Line stats ──
               INS=$(git diff --numstat "$PARENT_SHA" HEAD -- "$SOURCE_FILE" | awk '{print $1}')
               DEL=$(git diff --numstat "$PARENT_SHA" HEAD -- "$SOURCE_FILE" | awk '{print $2}')
               STATS_LINE="📄 \`${SOURCE_FILE}\` — **+${INS:-0}** / **-${DEL:-0}** lines"
 
-              # Get only added lines (lines starting with +, skip +++ header)
               ADDED_LINES=$(git diff "$PARENT_SHA" HEAD -- "$SOURCE_FILE" | grep "^+" | grep -v "^+++" || true)
-              # Get only removed lines
               REMOVED_LINES=$(git diff "$PARENT_SHA" HEAD -- "$SOURCE_FILE" | grep "^-" | grep -v "^---" || true)
 
-              # ══════════════════════════════════════
-              # NEW GAMES ADDED
-              # Looks for: [placeId] = {name = "GameName"
-              # ══════════════════════════════════════
               NEW_GAMES=$(echo "$ADDED_LINES" | grep -oP '\{name\s*=\s*"\K[^"]+' 2>/dev/null | head -5 || true)
               if [ -n "$NEW_GAMES" ]; then
                 GAME_LIST=""
@@ -76,9 +95,6 @@ jobs:
                 [ -n "$GAME_LIST" ] && CHANGES="${CHANGES}🎮 **New Games:** ${GAME_LIST}\n"
               fi
 
-              # ══════════════════════════════════════
-              # NEW FUNCTIONS
-              # ══════════════════════════════════════
               NEW_FUNCS=$(echo "$ADDED_LINES" | grep -oP '(?:local\s+)?function\s+\K\w+' 2>/dev/null | sort -u | head -10 || true)
               if [ -n "$NEW_FUNCS" ]; then
                 FUNC_LIST=""
@@ -88,9 +104,6 @@ jobs:
                 [ -n "$FUNC_LIST" ] && CHANGES="${CHANGES}🆕 **New Functions:** ${FUNC_LIST}\n"
               fi
 
-              # ══════════════════════════════════════
-              # REMOVED FUNCTIONS
-              # ══════════════════════════════════════
               REMOVED_FUNCS=$(echo "$REMOVED_LINES" | grep -oP '(?:local\s+)?function\s+\K\w+' 2>/dev/null | sort -u | head -10 || true)
               if [ -n "$REMOVED_FUNCS" ]; then
                 ACTUALLY_REMOVED=""
@@ -102,10 +115,6 @@ jobs:
                 [ -n "$ACTUALLY_REMOVED" ] && CHANGES="${CHANGES}🗑️ **Removed Functions:** ${ACTUALLY_REMOVED}\n"
               fi
 
-              # ══════════════════════════════════════
-              # NEW SETTINGS / CONFIG VALUES
-              # Looks for indented: SettingName = value,
-              # ══════════════════════════════════════
               NEW_SETTINGS=$(echo "$ADDED_LINES" | grep -P '^\+\s{4,}\w+\s*=' 2>/dev/null | grep -oP '^\+\s+\K\w+' 2>/dev/null | sort -u | head -12 || true)
               if [ -n "$NEW_SETTINGS" ]; then
                 SETTING_LIST=""
@@ -120,9 +129,6 @@ jobs:
                 [ -n "$SETTING_LIST" ] && CHANGES="${CHANGES}⚙️ **New Settings:** ${SETTING_LIST}\n"
               fi
 
-              # ══════════════════════════════════════
-              # NEW GUI ELEMENTS
-              # ══════════════════════════════════════
               NEW_CHECKBOXES=$(echo "$ADDED_LINES" | grep -oP 'createCheckbox\(\w+,\s*"\K[^"]+' 2>/dev/null | head -8 || true)
               if [ -n "$NEW_CHECKBOXES" ]; then
                 CB_LIST=""
@@ -159,9 +165,6 @@ jobs:
                 [ -n "$SEC_LIST" ] && CHANGES="${CHANGES}📂 **New Sections:** ${SEC_LIST}\n"
               fi
 
-              # ══════════════════════════════════════
-              # NEW THEMES
-              # ══════════════════════════════════════
               if echo "$ADDED_LINES" | grep -qP "Background\s*=\s*Color3"; then
                 NEW_THEMES=$(echo "$ADDED_LINES" | grep -oP '^\+\s{4}\K\w+(?=\s*=\s*\{)' 2>/dev/null | head -5 || true)
                 if [ -n "$NEW_THEMES" ]; then
@@ -173,15 +176,9 @@ jobs:
                 fi
               fi
 
-              # ══════════════════════════════════════
-              # WIP FLAGS
-              # ══════════════════════════════════════
               NEW_WIP=$(echo "$ADDED_LINES" | grep -c 'wip\s*=\s*true' 2>/dev/null || echo "0")
               [ "$NEW_WIP" -gt 0 ] && CHANGES="${CHANGES}🚧 **WIP flags added:** ${NEW_WIP} game(s)\n"
 
-              # ══════════════════════════════════════
-              # EXTERNAL SCRIPT LINKS
-              # ══════════════════════════════════════
               NEW_LOADSCRIPT=$(echo "$ADDED_LINES" | grep -oP 'loadScript\s*=\s*"\K[^"]+' 2>/dev/null | head -3 || true)
               if [ -n "$NEW_LOADSCRIPT" ]; then
                 LS_LIST=""
@@ -191,9 +188,6 @@ jobs:
                 [ -n "$LS_LIST" ] && CHANGES="${CHANGES}📜 **New External Scripts:**\n${LS_LIST}"
               fi
 
-              # ══════════════════════════════════════
-              # NEW EVENT CONNECTIONS (if significant)
-              # ══════════════════════════════════════
               NEW_CONNS=$(echo "$ADDED_LINES" | grep -c ":Connect(function" 2>/dev/null || echo "0")
               [ "$NEW_CONNS" -gt 3 ] && CHANGES="${CHANGES}⚡ **New event hooks:** ${NEW_CONNS} connections\n"
 
@@ -203,7 +197,7 @@ jobs:
           fi
 
           # ══════════════════════════════════════════
-          # ALSO CHECK script/* (obfuscated builds)
+          # CHECK script/* (obfuscated builds)
           # ══════════════════════════════════════════
           OBF_CHANGES=""
           if [ -n "$PARENT_SHA" ]; then
@@ -234,12 +228,10 @@ jobs:
           [ -n "$OBF_CHANGES" ] && DESC="${DESC}${OBF_CHANGES}"
           [ -n "$CHANGES" ] && DESC="${DESC}\n${CHANGES}"
 
-          # If nothing detected at all
           if [ -z "$STATS_LINE" ] && [ -z "$OBF_CHANGES" ] && [ -z "$CHANGES" ]; then
             DESC="${DESC}\n🔧 Config/docs update"
           fi
 
-          # Truncate for Discord 4096 char embed limit
           if [ ${#DESC} -gt 3800 ]; then
             DESC="${DESC:0:3750}\n\n... and more"
           fi
@@ -251,7 +243,7 @@ jobs:
           {
             "username": "Binxix Hub V6",
             "embeds": [{
-              "title": "🚀 Binxix Hub V6 — ${VERSION}",
+              "title": "🚀 Binxix Hub — ${VERSION}",
               "url": "${COMMIT_URL}",
               "color": 10181558,
               "description": "${DESC}",
