@@ -118,48 +118,196 @@ local gameConfig = {espEnabled = currentGameData.espEnabled}
 
 -- External script redirect for MM2 and TSB
 if currentGameData.loadScript then
-    _G.BinxixUnloaded = true
+    -- Show selection GUI: load external script or Binxix Hub
+    local choiceMade = false
+    local loadExternal = false
     
-    local notifGui = Instance.new("ScreenGui")
-    notifGui.Name = "BinxixLoader"
-    notifGui.ResetOnSpawn = false
-    notifGui.IgnoreGuiInset = true
-    notifGui.Parent = player:WaitForChild("PlayerGui")
+    local choiceGui = Instance.new("ScreenGui")
+    choiceGui.Name = "BinxixLoader"
+    choiceGui.ResetOnSpawn = false
+    choiceGui.IgnoreGuiInset = true
+    choiceGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    choiceGui.Parent = player:WaitForChild("PlayerGui")
     
-    local notifFrame = Instance.new("Frame")
-    notifFrame.Size = UDim2.new(0, 280, 0, 60)
-    notifFrame.Position = UDim2.new(0.5, -140, 0.5, -30)
-    notifFrame.BackgroundColor3 = Theme.BackgroundDark
-    notifFrame.BorderSizePixel = 0
-    notifFrame.Parent = notifGui
+    -- Dim background
+    local dimBg = Instance.new("Frame")
+    dimBg.Size = UDim2.new(1, 0, 1, 0)
+    dimBg.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    dimBg.BackgroundTransparency = 0.5
+    dimBg.BorderSizePixel = 0
+    dimBg.ZIndex = 100
+    dimBg.Parent = choiceGui
     
-    local notifText = Instance.new("TextLabel")
-    notifText.Size = UDim2.new(1, -16, 1, -16)
-    notifText.Position = UDim2.new(0, 8, 0, 8)
-    notifText.BackgroundTransparency = 1
-    notifText.Text = "Loading " .. currentGameData.scriptName .. "..."
-    notifText.TextColor3 = Theme.TextPrimary
-    notifText.TextSize = 12
-    notifText.Font = Enum.Font.SourceSans
-    notifText.Parent = notifFrame
+    local choiceFrame = Instance.new("Frame")
+    choiceFrame.Size = UDim2.new(0, 320, 0, 160)
+    choiceFrame.Position = UDim2.new(0.5, -160, 0.5, -80)
+    choiceFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+    choiceFrame.BorderSizePixel = 0
+    choiceFrame.ZIndex = 101
+    choiceFrame.Parent = choiceGui
     
-    task.spawn(function()
-        task.wait(0.5)
-        local success, err = pcall(function()
-            loadstring(game:HttpGet(currentGameData.loadScript))()
-        end)
-        
-        if success then
-            notifText.Text = currentGameData.scriptName .. " Loaded!"
-            task.wait(2)
-        else
-            notifText.Text = "Failed: " .. tostring(err)
-            task.wait(3)
-        end
-        notifGui:Destroy()
+    local choiceCorner = Instance.new("UICorner")
+    choiceCorner.CornerRadius = UDim.new(0, 8)
+    choiceCorner.Parent = choiceFrame
+    
+    local choiceStroke = Instance.new("UIStroke")
+    choiceStroke.Color = Color3.fromRGB(200, 100, 200)
+    choiceStroke.Thickness = 1
+    choiceStroke.Parent = choiceFrame
+    
+    local titleLabel = Instance.new("TextLabel")
+    titleLabel.Size = UDim2.new(1, -16, 0, 24)
+    titleLabel.Position = UDim2.new(0, 8, 0, 12)
+    titleLabel.BackgroundTransparency = 1
+    titleLabel.Text = "Binxix Hub V6"
+    titleLabel.TextColor3 = Color3.fromRGB(200, 100, 200)
+    titleLabel.TextSize = 16
+    titleLabel.Font = Enum.Font.SourceSansBold
+    titleLabel.ZIndex = 102
+    titleLabel.Parent = choiceFrame
+    
+    local subtitleLabel = Instance.new("TextLabel")
+    subtitleLabel.Size = UDim2.new(1, -16, 0, 18)
+    subtitleLabel.Position = UDim2.new(0, 8, 0, 38)
+    subtitleLabel.BackgroundTransparency = 1
+    subtitleLabel.Text = currentGameData.name .. " detected — choose your script:"
+    subtitleLabel.TextColor3 = Color3.fromRGB(180, 180, 190)
+    subtitleLabel.TextSize = 12
+    subtitleLabel.Font = Enum.Font.SourceSans
+    subtitleLabel.ZIndex = 102
+    subtitleLabel.Parent = choiceFrame
+    
+    -- External script button
+    local extBtn = Instance.new("TextButton")
+    extBtn.Size = UDim2.new(0, 135, 0, 40)
+    extBtn.Position = UDim2.new(0, 20, 0, 72)
+    extBtn.BackgroundColor3 = Color3.fromRGB(40, 100, 60)
+    extBtn.BorderSizePixel = 0
+    extBtn.Text = "Load " .. (currentGameData.scriptName or "External")
+    extBtn.TextColor3 = Color3.fromRGB(120, 255, 160)
+    extBtn.TextSize = 13
+    extBtn.Font = Enum.Font.SourceSansBold
+    extBtn.ZIndex = 102
+    extBtn.Parent = choiceFrame
+    
+    local extCorner = Instance.new("UICorner")
+    extCorner.CornerRadius = UDim.new(0, 6)
+    extCorner.Parent = extBtn
+    
+    -- Binxix Hub button
+    local hubBtn = Instance.new("TextButton")
+    hubBtn.Size = UDim2.new(0, 135, 0, 40)
+    hubBtn.Position = UDim2.new(0, 165, 0, 72)
+    hubBtn.BackgroundColor3 = Color3.fromRGB(80, 40, 100)
+    hubBtn.BorderSizePixel = 0
+    hubBtn.Text = "Load Binxix Hub"
+    hubBtn.TextColor3 = Color3.fromRGB(200, 150, 255)
+    hubBtn.TextSize = 13
+    hubBtn.Font = Enum.Font.SourceSansBold
+    hubBtn.ZIndex = 102
+    hubBtn.Parent = choiceFrame
+    
+    local hubCorner = Instance.new("UICorner")
+    hubCorner.CornerRadius = UDim.new(0, 6)
+    hubCorner.Parent = hubBtn
+    
+    -- Info text
+    local infoTxt = Instance.new("TextLabel")
+    infoTxt.Size = UDim2.new(1, -16, 0, 14)
+    infoTxt.Position = UDim2.new(0, 8, 0, 120)
+    infoTxt.BackgroundTransparency = 1
+    infoTxt.Text = currentGameData.scriptName .. " = game-specific  |  Binxix Hub = universal (ESP/Aimbot)"
+    infoTxt.TextColor3 = Color3.fromRGB(120, 120, 130)
+    infoTxt.TextSize = 10
+    infoTxt.Font = Enum.Font.SourceSansItalic
+    infoTxt.ZIndex = 102
+    infoTxt.Parent = choiceFrame
+    
+    -- Auto-select timer label
+    local timerLabel = Instance.new("TextLabel")
+    timerLabel.Size = UDim2.new(1, -16, 0, 14)
+    timerLabel.Position = UDim2.new(0, 8, 0, 136)
+    timerLabel.BackgroundTransparency = 1
+    timerLabel.Text = ""
+    timerLabel.TextColor3 = Color3.fromRGB(100, 100, 110)
+    timerLabel.TextSize = 10
+    timerLabel.Font = Enum.Font.SourceSans
+    timerLabel.ZIndex = 102
+    timerLabel.Parent = choiceFrame
+    
+    -- Hover effects
+    extBtn.MouseEnter:Connect(function() extBtn.BackgroundColor3 = Color3.fromRGB(50, 130, 75) end)
+    extBtn.MouseLeave:Connect(function() extBtn.BackgroundColor3 = Color3.fromRGB(40, 100, 60) end)
+    hubBtn.MouseEnter:Connect(function() hubBtn.BackgroundColor3 = Color3.fromRGB(100, 50, 130) end)
+    hubBtn.MouseLeave:Connect(function() hubBtn.BackgroundColor3 = Color3.fromRGB(80, 40, 100) end)
+    
+    extBtn.MouseButton1Click:Connect(function()
+        choiceMade = true
+        loadExternal = true
     end)
     
-    return
+    hubBtn.MouseButton1Click:Connect(function()
+        choiceMade = true
+        loadExternal = false
+    end)
+    
+    -- Auto-select external after 10 seconds if no choice made
+    task.spawn(function()
+        for i = 10, 1, -1 do
+            if choiceMade then break end
+            timerLabel.Text = "Auto-loading " .. currentGameData.scriptName .. " in " .. i .. "s..."
+            task.wait(1)
+        end
+        if not choiceMade then
+            choiceMade = true
+            loadExternal = true
+        end
+    end)
+    
+    -- Wait for choice
+    while not choiceMade do task.wait(0.1) end
+    
+    if loadExternal then
+        -- Load external script
+        _G.BinxixUnloaded = true
+        
+        local loadingLabel = Instance.new("TextLabel")
+        loadingLabel.Size = UDim2.new(1, 0, 1, 0)
+        loadingLabel.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+        loadingLabel.Text = "Loading " .. currentGameData.scriptName .. "..."
+        loadingLabel.TextColor3 = Color3.fromRGB(200, 200, 210)
+        loadingLabel.TextSize = 14
+        loadingLabel.Font = Enum.Font.SourceSans
+        loadingLabel.ZIndex = 103
+        loadingLabel.Parent = choiceFrame
+        
+        -- Remove buttons
+        extBtn:Destroy()
+        hubBtn:Destroy()
+        
+        task.spawn(function()
+            task.wait(0.3)
+            local success, err = pcall(function()
+                loadstring(game:HttpGet(currentGameData.loadScript))()
+            end)
+            
+            if success then
+                loadingLabel.Text = currentGameData.scriptName .. " Loaded!"
+                task.wait(1.5)
+            else
+                loadingLabel.Text = "Failed: " .. tostring(err)
+                task.wait(3)
+            end
+            choiceGui:Destroy()
+        end)
+        
+        return
+    else
+        -- User chose Binxix Hub — destroy selection GUI and continue loading
+        choiceGui:Destroy()
+        -- Enable ESP for these games when using Binxix Hub
+        gameConfig.espEnabled = true
+    end
 end
 
 -- ============================================
@@ -232,6 +380,7 @@ local Settings = {
     Movement = {
         SpeedEnabled = false,
         Speed = 16,
+        SpeedMethod = "WalkSpeed", -- "WalkSpeed", "CFrame", "Velocity"
         JumpEnabled = false,
         JumpPower = 50,
         BunnyHop = false,
@@ -2234,15 +2383,32 @@ local function createAirHubStyleGUI()
     createSectionHeader(generalPage, "Movement", 0, 0)
     createCheckbox(generalPage, "Speed Boost", 0, 20, false, function(e)
         Settings.Movement.SpeedEnabled = e
-        local char = player.Character
-        if char then
-            local h = char:FindFirstChild("Humanoid")
-            if h then h.WalkSpeed = e and Settings.Movement.Speed or 16 end
+        if Settings.Movement.SpeedMethod == "WalkSpeed" then
+            local char = player.Character
+            if char then
+                local h = char:FindFirstChild("Humanoid")
+                if h then h.WalkSpeed = e and Settings.Movement.Speed or 16 end
+            end
+        end
+        if not e then
+            -- Clean up velocity if it exists
+            local char = player.Character
+            if char then
+                local hrp = char:FindFirstChild("HumanoidRootPart")
+                if hrp then
+                    local bv = hrp:FindFirstChild("BinxixSpeedVelocity")
+                    if bv then bv:Destroy() end
+                end
+                if Settings.Movement.SpeedMethod == "WalkSpeed" then
+                    local h = char:FindFirstChild("Humanoid")
+                    if h then h.WalkSpeed = 16 end
+                end
+            end
         end
     end)
     createSlider(generalPage, "Speed", 0, 40, 16, 200, 16, function(v)
         Settings.Movement.Speed = v
-        if Settings.Movement.SpeedEnabled then
+        if Settings.Movement.SpeedEnabled and Settings.Movement.SpeedMethod == "WalkSpeed" then
             local char = player.Character
             if char then
                 local h = char:FindFirstChild("Humanoid")
@@ -2250,7 +2416,30 @@ local function createAirHubStyleGUI()
             end
         end
     end)
-    createCheckbox(generalPage, "High Jump", 0, 80, false, function(e)
+    createDropdown(generalPage, "Speed Method", 0, 75, {"WalkSpeed", "CFrame", "Velocity"}, "WalkSpeed", function(v)
+        -- Reset old method before switching
+        local char = player.Character
+        if char then
+            local h = char:FindFirstChild("Humanoid")
+            if h and Settings.Movement.SpeedMethod == "WalkSpeed" then
+                h.WalkSpeed = 16
+            end
+            local hrp = char:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                local bv = hrp:FindFirstChild("BinxixSpeedVelocity")
+                if bv then bv:Destroy() end
+            end
+        end
+        Settings.Movement.SpeedMethod = v
+        -- Apply new method if speed is enabled
+        if Settings.Movement.SpeedEnabled and v == "WalkSpeed" then
+            if char then
+                local h = char:FindFirstChild("Humanoid")
+                if h then h.WalkSpeed = Settings.Movement.Speed end
+            end
+        end
+    end)
+    createCheckbox(generalPage, "High Jump", 0, 115, false, function(e)
         Settings.Movement.JumpEnabled = e
         local char = player.Character
         if char then
@@ -2258,7 +2447,7 @@ local function createAirHubStyleGUI()
             if h then h.JumpPower = e and Settings.Movement.JumpPower or 50 end
         end
     end)
-    createSlider(generalPage, "Jump Power", 0, 100, 50, 300, 50, function(v)
+    createSlider(generalPage, "Jump Power", 0, 135, 50, 300, 50, function(v)
         Settings.Movement.JumpPower = v
         if Settings.Movement.JumpEnabled then
             local char = player.Character
@@ -2268,10 +2457,10 @@ local function createAirHubStyleGUI()
             end
         end
     end)
-    createCheckbox(generalPage, "Bunny Hop", 0, 140, false, function(e)
+    createCheckbox(generalPage, "Bunny Hop", 0, 175, false, function(e)
         Settings.Movement.BunnyHop = e
     end)
-    createSlider(generalPage, "Bhop Speed", 0, 160, 1, 100, 30, function(v)
+    createSlider(generalPage, "Bhop Speed", 0, 195, 1, 100, 30, function(v)
         Settings.Movement.BunnyHopSpeed = v
     end)
     
@@ -2346,21 +2535,21 @@ local function createAirHubStyleGUI()
     -- ========================================
     -- CHAT SPAMMER
     -- ========================================
-    createSectionHeader(generalPage, "Chat Spammer", 240, 350)
+    createSectionHeader(generalPage, "Chat Spammer", 240, 400)
     
-    createCheckbox(generalPage, "Chat Spammer", 240, 370, false, function(e)
+    createCheckbox(generalPage, "Chat Spammer", 240, 420, false, function(e)
         Settings.Misc.ChatSpammer = e
         sendNotification("Chat Spammer", e and "Enabled — spamming chat" or "Disabled", 2)
     end)
     
-    createSlider(generalPage, "Spam Delay (s)", 240, 390, 0.5, 10, 3, function(v)
+    createSlider(generalPage, "Spam Delay (s)", 240, 440, 0.5, 10, 3, function(v)
         Settings.Misc.ChatSpamDelay = v
     end)
     
     -- Chat spam message input
     local spamMsgLabel = Instance.new("TextLabel")
     spamMsgLabel.Size = UDim2.new(0, 200, 0, 14)
-    spamMsgLabel.Position = UDim2.new(0, 240, 0, 425)
+    spamMsgLabel.Position = UDim2.new(0, 240, 0, 475)
     spamMsgLabel.BackgroundTransparency = 1
     spamMsgLabel.Text = "Spam Message:"
     spamMsgLabel.TextColor3 = Theme.TextSecondary
@@ -2371,7 +2560,7 @@ local function createAirHubStyleGUI()
     
     local spamMsgBox = Instance.new("TextBox")
     spamMsgBox.Size = UDim2.new(0, 210, 0, 22)
-    spamMsgBox.Position = UDim2.new(0, 240, 0, 440)
+    spamMsgBox.Position = UDim2.new(0, 240, 0, 490)
     spamMsgBox.BackgroundColor3 = Theme.BackgroundDark
     spamMsgBox.BorderSizePixel = 1
     spamMsgBox.BorderColor3 = Theme.Border
@@ -2394,12 +2583,12 @@ local function createAirHubStyleGUI()
     -- ========================================
     -- GUN MODS SECTION (replaces Kill Aura / Trigger Bot)
     -- ========================================
-    createSectionHeader(generalPage, "Gun Mods", 0, 260)
+    createSectionHeader(generalPage, "Gun Mods", 0, 295)
     
     -- WIP / Lag warning
     local gunModWarnLabel = Instance.new("TextLabel")
     gunModWarnLabel.Size = UDim2.new(0, 210, 0, 14)
-    gunModWarnLabel.Position = UDim2.new(0, 0, 0, 278)
+    gunModWarnLabel.Position = UDim2.new(0, 0, 0, 313)
     gunModWarnLabel.BackgroundTransparency = 1
     gunModWarnLabel.Text = "⚠ May lead to lag — WIP"
     gunModWarnLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
@@ -2408,29 +2597,29 @@ local function createAirHubStyleGUI()
     gunModWarnLabel.TextXAlignment = Enum.TextXAlignment.Left
     gunModWarnLabel.Parent = generalPage
     
-    createCheckbox(generalPage, "Fast Reload", 0, 295, false, function(e)
+    createCheckbox(generalPage, "Fast Reload", 0, 330, false, function(e)
         Settings.Combat.FastReload = e
         sendNotification("Gun Mods", e and "Fast Reload enabled" or "Fast Reload disabled", 2)
     end)
-    createCheckbox(generalPage, "Fast Fire Rate", 0, 315, false, function(e)
+    createCheckbox(generalPage, "Fast Fire Rate", 0, 350, false, function(e)
         Settings.Combat.FastFireRate = e
         sendNotification("Gun Mods", e and "Fast Fire Rate enabled" or "Fast Fire Rate disabled", 2)
     end)
-    createCheckbox(generalPage, "Always Auto", 0, 335, false, function(e)
+    createCheckbox(generalPage, "Always Auto", 0, 370, false, function(e)
         Settings.Combat.AlwaysAuto = e
         sendNotification("Gun Mods", e and "Always Auto enabled" or "Always Auto disabled", 2)
     end)
-    createCheckbox(generalPage, "No Spread", 0, 355, false, function(e)
+    createCheckbox(generalPage, "No Spread", 0, 390, false, function(e)
         Settings.Combat.NoSpread = e
         sendNotification("Gun Mods", e and "No Spread enabled" or "No Spread disabled", 2)
     end)
-    createCheckbox(generalPage, "No Recoil", 0, 375, false, function(e)
+    createCheckbox(generalPage, "No Recoil", 0, 410, false, function(e)
         Settings.Combat.NoRecoil = e
         sendNotification("Gun Mods", e and "No Recoil enabled" or "No Recoil disabled", 2)
     end)
     
     -- Increase canvas size to fit content
-    generalPage.CanvasSize = UDim2.new(0, 0, 0, 540)
+    generalPage.CanvasSize = UDim2.new(0, 0, 0, 580)
     
     -- Auto TP Loop with warning + keybind
     local autoTPToggleKey = Enum.KeyCode.T
@@ -2480,7 +2669,7 @@ local function createAirHubStyleGUI()
     -- Player target dropdown for Auto TP
     local tpTargetDropFrame = Instance.new("Frame")
     tpTargetDropFrame.Size = UDim2.new(0, 220, 0, 38)
-    tpTargetDropFrame.Position = UDim2.new(0, 240, 0, 365)
+    tpTargetDropFrame.Position = UDim2.new(0, 240, 0, 325)
     tpTargetDropFrame.BackgroundTransparency = 1
     tpTargetDropFrame.Parent = generalPage
     
@@ -2675,12 +2864,12 @@ local function createAirHubStyleGUI()
     end)
     table.insert(allConnections, tpKeybindInputConn)
     
-    createSlider(generalPage, "TP Delay (s)", 240, 325, 0.05, 2, 0.2, function(v)
+    createSlider(generalPage, "TP Delay (s)", 240, 365, 0.05, 2, 0.2, function(v)
         Settings.Misc.AutoTPLoopDelay = v
     end)
     
     -- Server buttons
-    createSectionHeader(generalPage, "Server", 0, 185)
+    createSectionHeader(generalPage, "Server", 0, 220)
     
     local function createServerButton(text, posY, callback)
         local btn = Instance.new("TextButton")
@@ -2705,10 +2894,10 @@ local function createAirHubStyleGUI()
         return btn
     end
     
-    createServerButton("Rejoin Server", 200, function()
+    createServerButton("Rejoin Server", 235, function()
         pcall(function() TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, player) end)
     end)
-    createServerButton("Server Hop", 226, function()
+    createServerButton("Server Hop", 261, function()
         pcall(function() TeleportService:Teleport(game.PlaceId, player) end)
     end)
     
@@ -4336,6 +4525,77 @@ local function createAirHubStyleGUI()
         updateCrosshair()
     end)
     table.insert(allConnections, crosshairUpdateConn)
+    
+    -- ========================================
+    -- SPEED BOOST (CFrame / Velocity methods)
+    -- ========================================
+    local speedVelocity = nil
+    
+    local speedMethodConn = RunService.Heartbeat:Connect(function(dt)
+        if isUnloading or _G.BinxixUnloaded then return end
+        if not Settings.Movement.SpeedEnabled then
+            -- Cleanup
+            if speedVelocity then
+                pcall(function() speedVelocity:Destroy() end)
+                speedVelocity = nil
+            end
+            return
+        end
+        
+        local method = Settings.Movement.SpeedMethod
+        if method == "WalkSpeed" then
+            -- WalkSpeed is handled by the checkbox/slider callbacks
+            if speedVelocity then
+                pcall(function() speedVelocity:Destroy() end)
+                speedVelocity = nil
+            end
+            return
+        end
+        
+        local char = player.Character
+        if not char then return end
+        local hrp = char:FindFirstChild("HumanoidRootPart")
+        local humanoid = char:FindFirstChild("Humanoid")
+        if not hrp or not humanoid then return end
+        
+        -- Make sure WalkSpeed is normal when using other methods
+        humanoid.WalkSpeed = 16
+        
+        local moveDir = humanoid.MoveDirection
+        if moveDir.Magnitude < 0.1 then
+            -- Not moving — cleanup velocity
+            if speedVelocity then
+                pcall(function() speedVelocity:Destroy() end)
+                speedVelocity = nil
+            end
+            return
+        end
+        
+        local speed = Settings.Movement.Speed
+        
+        if method == "CFrame" then
+            -- CFrame method — directly move the character
+            if speedVelocity then
+                pcall(function() speedVelocity:Destroy() end)
+                speedVelocity = nil
+            end
+            local moveCF = CFrame.new(moveDir * (speed / 60))
+            hrp.CFrame = hrp.CFrame * moveCF
+            
+        elseif method == "Velocity" then
+            -- Velocity method — use BodyVelocity
+            if not speedVelocity or speedVelocity.Parent ~= hrp then
+                if speedVelocity then pcall(function() speedVelocity:Destroy() end) end
+                speedVelocity = Instance.new("BodyVelocity")
+                speedVelocity.Name = "BinxixSpeedVelocity"
+                speedVelocity.MaxForce = Vector3.new(100000, 0, 100000)
+                speedVelocity.P = 10000
+                speedVelocity.Parent = hrp
+            end
+            speedVelocity.Velocity = moveDir * speed
+        end
+    end)
+    table.insert(allConnections, speedMethodConn)
     
     -- ========================================
     -- BUNNY HOP WITH FORWARD MOMENTUM (Improved)
