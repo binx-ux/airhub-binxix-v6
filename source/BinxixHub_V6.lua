@@ -265,6 +265,7 @@ local Settings = {
         AutoRejoin = false,
         AutoTPLoop = false,
         AutoTPLoopDelay = 0.2,
+        AutoTPTargetName = "Nearest Enemy",
         ChatSpammer = false,
         ChatSpamMessage = "Binxix Hub V6 on top",
         ChatSpamDelay = 3,
@@ -1995,6 +1996,29 @@ local function createAirHubStyleGUI()
         local myHRP = myChar:FindFirstChild("HumanoidRootPart")
         if not myHRP then return nil end
         
+        local targetName = Settings.Misc.AutoTPTargetName
+        
+        -- If a specific player is selected, try to find them
+        if targetName and targetName ~= "Nearest Enemy" then
+            for _, target in ipairs(Players:GetPlayers()) do
+                if target ~= player and target.DisplayName == targetName or target.Name == targetName then
+                    local targetChar = target.Character
+                    if targetChar then
+                        local targetHRP = targetChar:FindFirstChild("HumanoidRootPart")
+                        local targetHumanoid = targetChar:FindFirstChild("Humanoid")
+                        if targetHRP and targetHumanoid and targetHumanoid.Health > 0 then
+                            if not isTargetProtected(target) then
+                                return target
+                            end
+                        end
+                    end
+                end
+            end
+            -- Selected player not found or dead, return nil (wait for them)
+            return nil
+        end
+        
+        -- Default: nearest enemy
         local nearest, nearestDist = nil, math.huge
         
         for _, target in ipairs(Players:GetPlayers()) do
@@ -2052,7 +2076,7 @@ local function createAirHubStyleGUI()
                                 
                                 -- Check target Y is sane
                                 if targetPos.Y < MIN_Y or targetPos.Y > MAX_Y then
-                                    sendNotification("Auto TP", autoTPTarget.DisplayName .. " is out of bounds — skipping", 2)
+                                    -- (notification suppressed)
                                     skipTarget = true
                                 end
                                 
@@ -2065,7 +2089,7 @@ local function createAirHubStyleGUI()
                                     local groundCheck = Workspace:Raycast(targetPos, Vector3.new(0, -200, 0), rayParams)
                                     
                                     if not groundCheck and targetPos.Y > 20 then
-                                        sendNotification("Auto TP", autoTPTarget.DisplayName .. " has no ground — waiting", 2)
+                                        -- (notification suppressed)
                                         local waitedForGround = false
                                         for i = 1, 20 do -- Wait up to 2 seconds
                                             task.wait(0.1)
@@ -2107,7 +2131,7 @@ local function createAirHubStyleGUI()
                                     myHRP = myChar and myChar:FindFirstChild("HumanoidRootPart")
                                     if myHRP and myHRP.Position.Y < MIN_Y then
                                         myHRP.CFrame = safePosition
-                                        sendNotification("Auto TP", "Void detected — returned to safe position", 2)
+                                        -- (notification suppressed)
                                         skipTarget = true
                                     end
                                 end
@@ -2124,7 +2148,7 @@ local function createAirHubStyleGUI()
                                         -- If WE fell into void, escape back
                                         if myHRP.Position.Y < MIN_Y then
                                             myHRP.CFrame = safePosition
-                                            sendNotification("Auto TP", "You fell — returned to safe position", 2)
+                                            -- (notification suppressed)
                                             break
                                         end
                                         
@@ -2142,12 +2166,12 @@ local function createAirHubStyleGUI()
                                         if not targetHRP then break end
                                         
                                         if targetHRP.Position.Y < MIN_Y then
-                                            sendNotification("Auto TP", autoTPTarget.DisplayName .. " fell to void — skipping", 2)
+                                            -- (notification suppressed)
                                             break
                                         end
                                         
                                         if isTargetProtected(autoTPTarget) then
-                                            sendNotification("Auto TP", autoTPTarget.DisplayName .. " is protected — skipping", 2)
+                                            -- (notification suppressed)
                                             break
                                         end
                                         
@@ -2406,7 +2430,7 @@ local function createAirHubStyleGUI()
     end)
     
     -- Increase canvas size to fit content
-    generalPage.CanvasSize = UDim2.new(0, 0, 0, 500)
+    generalPage.CanvasSize = UDim2.new(0, 0, 0, 540)
     
     -- Auto TP Loop with warning + keybind
     local autoTPToggleKey = Enum.KeyCode.T
@@ -2453,6 +2477,116 @@ local function createAirHubStyleGUI()
     
     local autoTPEnabled = false
     
+    -- Player target dropdown for Auto TP
+    local tpTargetDropFrame = Instance.new("Frame")
+    tpTargetDropFrame.Size = UDim2.new(0, 220, 0, 38)
+    tpTargetDropFrame.Position = UDim2.new(0, 240, 0, 365)
+    tpTargetDropFrame.BackgroundTransparency = 1
+    tpTargetDropFrame.Parent = generalPage
+    
+    local tpTargetLabel = Instance.new("TextLabel")
+    tpTargetLabel.Size = UDim2.new(0, 70, 0, 14)
+    tpTargetLabel.Position = UDim2.new(0, 0, 0, 0)
+    tpTargetLabel.BackgroundTransparency = 1
+    tpTargetLabel.Text = "TP Target:"
+    tpTargetLabel.TextColor3 = Theme.TextSecondary
+    tpTargetLabel.TextSize = 11
+    tpTargetLabel.Font = Enum.Font.SourceSans
+    tpTargetLabel.TextXAlignment = Enum.TextXAlignment.Left
+    tpTargetLabel.Parent = tpTargetDropFrame
+    
+    local tpTargetBtn = Instance.new("TextButton")
+    tpTargetBtn.Size = UDim2.new(0, 145, 0, 18)
+    tpTargetBtn.Position = UDim2.new(0, 72, 0, 0)
+    tpTargetBtn.BackgroundColor3 = Theme.SliderBackground
+    tpTargetBtn.BorderSizePixel = 1
+    tpTargetBtn.BorderColor3 = Theme.Border
+    tpTargetBtn.Text = "Nearest Enemy ▼"
+    tpTargetBtn.TextColor3 = Theme.AccentBright
+    tpTargetBtn.TextSize = 11
+    tpTargetBtn.Font = Enum.Font.SourceSans
+    tpTargetBtn.TextTruncate = Enum.TextTruncate.AtEnd
+    tpTargetBtn.Parent = tpTargetDropFrame
+    
+    local tpDropdownOpen = false
+    local tpDropdownFrame = nil
+    
+    local function closeTpDropdown()
+        if tpDropdownFrame then
+            tpDropdownFrame:Destroy()
+            tpDropdownFrame = nil
+        end
+        tpDropdownOpen = false
+    end
+    
+    local function openTpDropdown()
+        closeTpDropdown()
+        tpDropdownOpen = true
+        
+        -- Build player list
+        local options = {"Nearest Enemy"}
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= player then
+                table.insert(options, p.DisplayName)
+            end
+        end
+        
+        tpDropdownFrame = Instance.new("ScrollingFrame")
+        tpDropdownFrame.Size = UDim2.new(0, 145, 0, math.min(#options * 18, 108))
+        tpDropdownFrame.Position = UDim2.new(0, 72, 0, 19)
+        tpDropdownFrame.BackgroundColor3 = Theme.BackgroundDark
+        tpDropdownFrame.BorderSizePixel = 1
+        tpDropdownFrame.BorderColor3 = Theme.AccentDark
+        tpDropdownFrame.ScrollBarThickness = 3
+        tpDropdownFrame.ScrollBarImageColor3 = Theme.AccentDark
+        tpDropdownFrame.CanvasSize = UDim2.new(0, 0, 0, #options * 18)
+        tpDropdownFrame.ScrollingDirection = Enum.ScrollingDirection.Y
+        tpDropdownFrame.ZIndex = 50
+        tpDropdownFrame.Parent = tpTargetDropFrame
+        
+        for i, optionName in ipairs(options) do
+            local optBtn = Instance.new("TextButton")
+            optBtn.Size = UDim2.new(1, 0, 0, 18)
+            optBtn.Position = UDim2.new(0, 0, 0, (i - 1) * 18)
+            optBtn.BackgroundColor3 = Theme.BackgroundDark
+            optBtn.BackgroundTransparency = 0
+            optBtn.BorderSizePixel = 0
+            optBtn.Text = optionName
+            optBtn.TextColor3 = (optionName == Settings.Misc.AutoTPTargetName) and Theme.AccentBright or Theme.TextPrimary
+            optBtn.TextSize = 11
+            optBtn.Font = Enum.Font.SourceSans
+            optBtn.TextTruncate = Enum.TextTruncate.AtEnd
+            optBtn.ZIndex = 51
+            optBtn.Parent = tpDropdownFrame
+            
+            optBtn.MouseEnter:Connect(function()
+                optBtn.BackgroundColor3 = Theme.AccentDark
+            end)
+            optBtn.MouseLeave:Connect(function()
+                optBtn.BackgroundColor3 = Theme.BackgroundDark
+            end)
+            optBtn.MouseButton1Click:Connect(function()
+                Settings.Misc.AutoTPTargetName = optionName
+                tpTargetBtn.Text = optionName .. " ▼"
+                closeTpDropdown()
+            end)
+        end
+    end
+    
+    tpTargetBtn.MouseEnter:Connect(function()
+        if not tpDropdownOpen then tpTargetBtn.BackgroundColor3 = Theme.AccentDark end
+    end)
+    tpTargetBtn.MouseLeave:Connect(function()
+        if not tpDropdownOpen then tpTargetBtn.BackgroundColor3 = Theme.SliderBackground end
+    end)
+    tpTargetBtn.MouseButton1Click:Connect(function()
+        if tpDropdownOpen then
+            closeTpDropdown()
+        else
+            openTpDropdown()
+        end
+    end)
+    
     -- Function to toggle auto TP (shared by checkbox and keybind)
     local function toggleAutoTP()
         if isUnloading or _G.BinxixUnloaded then return end
@@ -2462,10 +2596,11 @@ local function createAirHubStyleGUI()
         
         if autoTPEnabled then
             startAutoTPLoop()
-            sendNotification("Auto TP Loop", "Enabled — targeting nearest enemy", 2)
+            local targetText = Settings.Misc.AutoTPTargetName
+            sendNotification("Auto TP", "Enabled — targeting: " .. targetText, 2)
         else
             stopAutoTPLoop()
-            sendNotification("Auto TP Loop", "Disabled", 2)
+            sendNotification("Auto TP", "Disabled", 2)
         end
     end
     
