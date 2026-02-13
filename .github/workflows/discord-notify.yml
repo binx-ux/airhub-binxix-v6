@@ -3,6 +3,8 @@ name: Discord Update Notification
 on:
   push:
     branches: [main]
+    paths:
+      - 'source/**'
 
 jobs:
   notify:
@@ -58,7 +60,7 @@ jobs:
           git push || true
 
           # ══════════════════════════════════════════
-          # ONLY LOOK AT source/*.lua
+          # DIFF source/*.lua ONLY
           # ══════════════════════════════════════════
           SOURCE_FILE=""
           for f in source/*.lua; do
