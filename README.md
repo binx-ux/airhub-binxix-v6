@@ -1,122 +1,37 @@
-![Version](https://img.shields.io/badge/Binxix%20Hub-v6.2-purple)
-![Build](https://img.shields.io/badge/build-stable-success)
-![Support](https://img.shields.io/badge/executors-supported-blue)
+# Binxix Hub V6
 
+> AirHub V2 Style Edition
 
-# Binxix Hub V6 🚀  
-### AirHub V2 Style Redesign
+## Loadstring
+```lua
+loadstring(game:HttpGet("https://raw.githubusercontent.com/binx-ux/airhub-binxix-v6/main/script/aimbot"))()
+```
 
-A modern Roblox script hub featuring a clean AirHub V2–inspired UI, smooth animations, and automatic game detection with smart feature loading.
+## Features
+- **Aimbot** — smoothness, FOV, prediction, sticky aim, toggle mode, line of sight
+- **ESP** — boxes, names, health, distance, tracers, skeleton, chams, offscreen arrows
+- **Gun Mods** — fast reload, fast fire rate, always auto, no spread, no recoil (WIP)
+- **Movement** — speed boost (WalkSpeed/CFrame/Velocity), high jump, bunny hop, fly
+- **Visuals** — fullbright, no fog, custom FOV, crosshair, FPS/velocity display
+- **Auto TP** — target nearest enemy or specific player, keybind, void protection
+- **Chat Spammer** — custom message, adjustable delay
+- **Streamer Mode** — hides names, chat, notifications, aimbot indicators
+- **Profile System** — save/load settings
+- **Chat Spy** — logs all messages to console (F9)
+- **Suggestions & Bug Reports** — send directly from the GUI
 
-Binxix Hub V6 focuses on performance, visuals, and ease of use while keeping the source closed and protected.
+## Game Support
+Works universally on all Roblox games with ESP/aimbot. Special support for:
+- **Murder Mystery 2** — option to load Vertex or Binxix Hub
+- **The Strongest Battlegrounds** — option to load Phantasm or Binxix Hub
 
----
-## ✨ Features
+## Controls
+- `RightControl` — toggle GUI (rebindable)
+- `T` — toggle Auto TP (rebindable)
+- `F` — toggle Fly (when enabled)
 
-###  User Interface
-- AirHub V2 inspired redesign
-- Smooth TweenService animations
-- Modern tab-based layout
-- Clean spacing, typography, and color consistency
-- Optimized for performance and stability
+## Auto Updates
+Script checks for updates on load. If a new version is available, you'll see a banner in the GUI.
 
-###  Game Detection
-- Automatically detects the current PlaceId
-- Loads game-specific features
-- Falls back to universal mode when unsupported
-
-### 🕹 Supported Games
-- Arsenal  
-- MiscGunTest-X  
-- PR  
-- MTC  
-- Quick-Shot  
-- Sniper Duels  
-- Murder Mystery 2 (external loader)  
-- The Strongest Battlegrounds (external loader)  
-
-Some games automatically redirect to trusted external scripts.
-
----
-
-## 👁 ESP System
-- Distance-based ESP color scaling
-- Separate colors for:
-  - Close targets
-  - Medium range
-  - Far range
-  - Very far range
-- Game-based ESP enable/disable logic
-
-ESP availability depends on the detected game.
-
----
-
-##  Supported Executors
-Binxix Hub V6 is designed for executors that support modern UI rendering and HttpGet.
-
-### ✅ Tested Executors
-- Xeno  
-- Solara  
-- Wave  
-- Seliware  
-
-Executor updates may affect compatibility. Always use the latest version.
-
----
-
-##  External Script Handling
-For certain games, the hub unloads itself and redirects automatically:
-
-- **Murder Mystery 2** → Vertex  
-- **The Strongest Battlegrounds** → Phantasm  
-
-A custom loader notification UI is shown during redirection.
-
----
-
-##  Services Used
-- Players  
-- TweenService  
-- TeleportService  
-- RunService  
-- UserInputService  
-- Workspace  
-- Lighting  
-- HttpService  
-
----
-
-## ▶ Execution
-This script must be executed using a compatible Roblox script executor that supports:
-- HttpGet
-- UI instance creation
-- TweenService
-- Global environment access
-
----
-
-## 🔒 Source & Usage Policy
-This project is **closed-source**.
-
-You are allowed to:
-- Use the script as provided
-
-You are NOT allowed to:
-- Modify the script
-- Redistribute the script
-- Reverse engineer or decompile
-- Reupload or resell the script
-
----
-
-## ⚠ Disclaimer
-This project is provided for educational and experimental purposes only.  
-Use at your own risk. The author is not responsible for bans, data loss, or account actions.
-
----
-
-##  Credits
-**Binxix**  
-UI design inspired by AirHub V2  
-External scripts belong to their respective authors
+## Discord
+[discord.gg/S4nPV2Rx7F](https://discord.gg/S4nPV2Rx7F)
