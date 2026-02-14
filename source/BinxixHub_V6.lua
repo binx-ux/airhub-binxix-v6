@@ -4,7 +4,7 @@
 -- ============================================
 
 -- VERSION INFO (update checker compares against GitHub VERSION file)
-local SCRIPT_VERSION = 344 -- bump this each time you push to source/
+local SCRIPT_VERSION = 345 -- bump this each time you push to source/
 local VERSION_URL = "https://raw.githubusercontent.com/binx-ux/airhub-binxix-v6/main/VERSION"
 
 -- GLOBAL UNLOAD FLAG
@@ -419,6 +419,7 @@ local Settings = {
         AutoTPLoop = false,
         AutoTPLoopDelay = 0.2,
         AutoTPTargetName = "Nearest Enemy",
+        AutoTPAntiDeath = true,
         ChatSpammer = false,
         ChatSpamMessage = "Binxix Hub V6 on top",
         ChatSpamDelay = 3,
@@ -2198,9 +2199,108 @@ local function createAirHubStyleGUI()
     end
     
     local autoTPLoopConn = nil
+    local antiDeathConn = nil
+    local antiDeathDiedConn = nil
+    local lastSafeTPPosition = nil
+    
+    local function startAntiDeath()
+        if antiDeathConn then return end
+        
+        -- Health loop — max health every frame
+        antiDeathConn = RunService.Heartbeat:Connect(function()
+            if isUnloading or _G.BinxixUnloaded then return end
+            if not Settings.Misc.AutoTPLoop or not Settings.Misc.AutoTPAntiDeath then return end
+            
+            local char = player.Character
+            if not char then return end
+            local humanoid = char:FindFirstChild("Humanoid")
+            if humanoid and humanoid.Health > 0 then
+                humanoid.Health = humanoid.MaxHealth
+            end
+            
+            -- Also add ForceField if not present
+            if not char:FindFirstChildOfClass("ForceField") then
+                pcall(function()
+                    local ff = Instance.new("ForceField")
+                    ff.Name = "BinxixAntiDeath"
+                    ff.Visible = false
+                    ff.Parent = char
+                end)
+            end
+        end)
+        table.insert(allConnections, antiDeathConn)
+        
+        -- Auto-respawn + TP back if we somehow die
+        local function hookDeath()
+            local char = player.Character
+            if not char then return end
+            local humanoid = char:FindFirstChild("Humanoid")
+            if not humanoid then return end
+            
+            if antiDeathDiedConn then
+                pcall(function() antiDeathDiedConn:Disconnect() end)
+            end
+            
+            antiDeathDiedConn = humanoid.Died:Connect(function()
+                if not Settings.Misc.AutoTPLoop or not Settings.Misc.AutoTPAntiDeath then return end
+                
+                -- Save last position
+                local savedPos = lastSafeTPPosition
+                
+                -- Wait for respawn
+                task.wait(0.1)
+                player.Character = nil -- force respawn in some games
+                
+                -- Wait for new character
+                local newChar = player.CharacterAdded:Wait()
+                task.wait(0.5) -- wait for character to fully load
+                
+                local newHRP = newChar:WaitForChild("HumanoidRootPart", 5)
+                if newHRP and savedPos and Settings.Misc.AutoTPLoop then
+                    newHRP.CFrame = savedPos
+                end
+                
+                -- Re-hook death on new character
+                hookDeath()
+            end)
+            table.insert(allConnections, antiDeathDiedConn)
+        end
+        
+        hookDeath()
+        player.CharacterAdded:Connect(function()
+            task.wait(0.5)
+            if Settings.Misc.AutoTPLoop and Settings.Misc.AutoTPAntiDeath then
+                hookDeath()
+            end
+        end)
+    end
+    
+    local function stopAntiDeath()
+        if antiDeathConn then
+            pcall(function() antiDeathConn:Disconnect() end)
+            antiDeathConn = nil
+        end
+        if antiDeathDiedConn then
+            pcall(function() antiDeathDiedConn:Disconnect() end)
+            antiDeathDiedConn = nil
+        end
+        -- Remove ForceField
+        pcall(function()
+            local char = player.Character
+            if char then
+                local ff = char:FindFirstChild("BinxixAntiDeath")
+                if ff then ff:Destroy() end
+            end
+        end)
+    end
     
     local function startAutoTPLoop()
         if autoTPLoopConn then return end -- Already running
+        
+        -- Start anti-death if enabled
+        if Settings.Misc.AutoTPAntiDeath then
+            startAntiDeath()
+        end
         
         autoTPLoopConn = task.spawn(function()
             while Settings.Misc.AutoTPLoop and not isUnloading and not _G.BinxixUnloaded do
@@ -2271,6 +2371,7 @@ local function createAirHubStyleGUI()
                                     local targetCF = targetHRP.CFrame
                                     local lookAtTarget = CFrame.lookAt(targetCF.Position + targetCF.LookVector * 2, targetCF.Position)
                                     myHRP.CFrame = lookAtTarget
+                                    lastSafeTPPosition = lookAtTarget
                                     
                                     -- Lock camera to face target
                                     local camera = Workspace.CurrentCamera
@@ -2363,6 +2464,8 @@ local function createAirHubStyleGUI()
     local function stopAutoTPLoop()
         Settings.Misc.AutoTPLoop = false
         autoTPTarget = nil
+        lastSafeTPPosition = nil
+        stopAntiDeath()
         if autoTPLoopConn then
             pcall(function() task.cancel(autoTPLoopConn) end)
             autoTPLoopConn = nil
@@ -2539,21 +2642,21 @@ local function createAirHubStyleGUI()
     -- ========================================
     -- CHAT SPAMMER
     -- ========================================
-    createSectionHeader(generalPage, "Chat Spammer", 240, 400)
+    createSectionHeader(generalPage, "Chat Spammer", 240, 430)
     
-    createCheckbox(generalPage, "Chat Spammer", 240, 420, false, function(e)
+    createCheckbox(generalPage, "Chat Spammer", 240, 450, false, function(e)
         Settings.Misc.ChatSpammer = e
         sendNotification("Chat Spammer", e and "Enabled — spamming chat" or "Disabled", 2)
     end)
     
-    createSlider(generalPage, "Spam Delay (s)", 240, 440, 0.5, 10, 3, function(v)
+    createSlider(generalPage, "Spam Delay (s)", 240, 470, 0.5, 10, 3, function(v)
         Settings.Misc.ChatSpamDelay = v
     end)
     
     -- Chat spam message input
     local spamMsgLabel = Instance.new("TextLabel")
     spamMsgLabel.Size = UDim2.new(0, 200, 0, 14)
-    spamMsgLabel.Position = UDim2.new(0, 240, 0, 475)
+    spamMsgLabel.Position = UDim2.new(0, 240, 0, 505)
     spamMsgLabel.BackgroundTransparency = 1
     spamMsgLabel.Text = "Spam Message:"
     spamMsgLabel.TextColor3 = Theme.TextSecondary
@@ -2564,7 +2667,7 @@ local function createAirHubStyleGUI()
     
     local spamMsgBox = Instance.new("TextBox")
     spamMsgBox.Size = UDim2.new(0, 210, 0, 22)
-    spamMsgBox.Position = UDim2.new(0, 240, 0, 490)
+    spamMsgBox.Position = UDim2.new(0, 240, 0, 520)
     spamMsgBox.BackgroundColor3 = Theme.BackgroundDark
     spamMsgBox.BorderSizePixel = 1
     spamMsgBox.BorderColor3 = Theme.Border
@@ -2603,27 +2706,32 @@ local function createAirHubStyleGUI()
     
     createCheckbox(generalPage, "Fast Reload", 0, 330, false, function(e)
         Settings.Combat.FastReload = e
+        if e then applyAllGunMods() else restoreGunMod("ReloadTime") restoreGunMod("EReloadTime") end
         sendNotification("Gun Mods", e and "Fast Reload enabled" or "Fast Reload disabled", 2)
     end)
     createCheckbox(generalPage, "Fast Fire Rate", 0, 350, false, function(e)
         Settings.Combat.FastFireRate = e
+        if e then applyAllGunMods() else restoreGunMod("FireRate") end
         sendNotification("Gun Mods", e and "Fast Fire Rate enabled" or "Fast Fire Rate disabled", 2)
     end)
     createCheckbox(generalPage, "Always Auto", 0, 370, false, function(e)
         Settings.Combat.AlwaysAuto = e
+        if e then applyAllGunMods() else restoreGunMod("Auto") end
         sendNotification("Gun Mods", e and "Always Auto enabled" or "Always Auto disabled", 2)
     end)
     createCheckbox(generalPage, "No Spread", 0, 390, false, function(e)
         Settings.Combat.NoSpread = e
+        if e then applyAllGunMods() else restoreGunMod("Spread") end
         sendNotification("Gun Mods", e and "No Spread enabled" or "No Spread disabled", 2)
     end)
     createCheckbox(generalPage, "No Recoil", 0, 410, false, function(e)
         Settings.Combat.NoRecoil = e
+        if e then applyAllGunMods() else restoreGunMod("Recoil") end
         sendNotification("Gun Mods", e and "No Recoil enabled" or "No Recoil disabled", 2)
     end)
     
     -- Increase canvas size to fit content
-    generalPage.CanvasSize = UDim2.new(0, 0, 0, 580)
+    generalPage.CanvasSize = UDim2.new(0, 0, 0, 610)
     
     -- Auto TP Loop with warning + keybind
     local autoTPToggleKey = Enum.KeyCode.T
@@ -2870,6 +2978,17 @@ local function createAirHubStyleGUI()
     
     createSlider(generalPage, "TP Delay (s)", 240, 365, 0.05, 2, 0.2, function(v)
         Settings.Misc.AutoTPLoopDelay = v
+    end)
+    
+    createCheckbox(generalPage, "Anti-Death (TP)", 240, 400, true, function(e)
+        Settings.Misc.AutoTPAntiDeath = e
+        if Settings.Misc.AutoTPLoop then
+            if e then
+                startAntiDeath()
+            else
+                stopAntiDeath()
+            end
+        end
     end)
     
     -- Server buttons
@@ -5066,9 +5185,8 @@ local function createAirHubStyleGUI()
     table.insert(allConnections, triggerBotConn)
     
     -- ========================================
-    -- GUN MODS SYSTEM
+    -- GUN MODS SYSTEM (Optimized — single scan + cache)
     -- ========================================
-    -- Stores original weapon values so they can be restored when toggled off
     local gunModOriginalValues = {
         FireRate = {},
         ReloadTime = {},
@@ -5078,153 +5196,149 @@ local function createAirHubStyleGUI()
         Recoil = {},
     }
     
+    -- Cache of all weapon value objects (built once, updated via events)
+    local weaponValueCache = {}
+    local weaponCacheBuilt = false
+    
+    local function buildWeaponCache()
+        weaponValueCache = {}
+        local weapons = game:GetService("ReplicatedStorage"):FindFirstChild("Weapons")
+        if not weapons then return end
+        
+        for _, v in pairs(weapons:GetDescendants()) do
+            if v:IsA("ValueBase") then
+                local n = v.Name
+                if n == "ReloadTime" or n == "EReloadTime" or n == "FireRate" or n == "BFireRate"
+                    or n == "Auto" or n == "AutoFire" or n == "Automatic" or n == "AutoShoot" or n == "AutoGun"
+                    or n == "MaxSpread" or n == "Spread" or n == "SpreadControl"
+                    or n == "RecoilControl" or n == "Recoil" then
+                    table.insert(weaponValueCache, v)
+                end
+            end
+        end
+        weaponCacheBuilt = true
+    end
+    
+    -- Listen for new weapons being added
+    pcall(function()
+        local weapons = game:GetService("ReplicatedStorage"):FindFirstChild("Weapons")
+        if weapons then
+            weapons.DescendantAdded:Connect(function(v)
+                if v:IsA("ValueBase") then
+                    local n = v.Name
+                    if n == "ReloadTime" or n == "EReloadTime" or n == "FireRate" or n == "BFireRate"
+                        or n == "Auto" or n == "AutoFire" or n == "Automatic" or n == "AutoShoot" or n == "AutoGun"
+                        or n == "MaxSpread" or n == "Spread" or n == "SpreadControl"
+                        or n == "RecoilControl" or n == "Recoil" then
+                        table.insert(weaponValueCache, v)
+                        -- Apply mods immediately to new weapon value
+                        applyGunModToValue(v)
+                    end
+                end
+            end)
+        end
+    end)
+    
+    local function applyGunModToValue(v)
+        local n = v.Name
+        
+        -- Fast Reload
+        if Settings.Combat.FastReload and (n == "ReloadTime" or n == "EReloadTime") then
+            local key = n == "ReloadTime" and "ReloadTime" or "EReloadTime"
+            if not gunModOriginalValues[key][v] then
+                gunModOriginalValues[key][v] = v.Value
+            end
+            v.Value = 0.01
+        end
+        
+        -- Fast Fire Rate
+        if Settings.Combat.FastFireRate and (n == "FireRate" or n == "BFireRate") then
+            if not gunModOriginalValues.FireRate[v] then
+                gunModOriginalValues.FireRate[v] = v.Value
+            end
+            v.Value = 0.02
+        end
+        
+        -- Always Auto
+        if Settings.Combat.AlwaysAuto and (n == "Auto" or n == "AutoFire" or n == "Automatic" or n == "AutoShoot" or n == "AutoGun") then
+            if not gunModOriginalValues.Auto[v] then
+                gunModOriginalValues.Auto[v] = v.Value
+            end
+            v.Value = true
+        end
+        
+        -- No Spread
+        if Settings.Combat.NoSpread and (n == "MaxSpread" or n == "Spread" or n == "SpreadControl") then
+            if not gunModOriginalValues.Spread[v] then
+                gunModOriginalValues.Spread[v] = v.Value
+            end
+            v.Value = 0
+        end
+        
+        -- No Recoil
+        if Settings.Combat.NoRecoil and (n == "RecoilControl" or n == "Recoil") then
+            if not gunModOriginalValues.Recoil[v] then
+                gunModOriginalValues.Recoil[v] = v.Value
+            end
+            v.Value = 0
+        end
+    end
+    
+    -- Apply all gun mods (called when toggling on)
+    local function applyAllGunMods()
+        if not weaponCacheBuilt then buildWeaponCache() end
+        for _, v in ipairs(weaponValueCache) do
+            if v and v.Parent then
+                applyGunModToValue(v)
+            end
+        end
+    end
+    
+    -- Restore specific mod category
+    local function restoreGunMod(category)
+        for obj, val in pairs(gunModOriginalValues[category]) do
+            pcall(function()
+                if obj and obj.Parent then obj.Value = val end
+            end)
+        end
+        gunModOriginalValues[category] = {}
+    end
+    
+    -- Lightweight heartbeat — only re-applies values if game resets them (every 2s)
     local lastGunModCheck = 0
-    local GUN_MOD_INTERVAL = 0.5 -- only scan weapons every 0.5s to save performance
     
     local gunModConn = RunService.Heartbeat:Connect(function()
         if isUnloading or _G.BinxixUnloaded then return end
         
         local now = tick()
-        if now - lastGunModCheck < GUN_MOD_INTERVAL then return end
+        if now - lastGunModCheck < 2 then return end -- Check every 2 seconds instead of 0.5
         lastGunModCheck = now
         
-        -- Check if any gun mod is enabled
         local anyEnabled = Settings.Combat.FastReload or Settings.Combat.FastFireRate
             or Settings.Combat.AlwaysAuto or Settings.Combat.NoSpread or Settings.Combat.NoRecoil
         if not anyEnabled then return end
         
-        -- Find weapons folder
-        local weapons = game:GetService("ReplicatedStorage"):FindFirstChild("Weapons")
-        if not weapons then return end
+        if not weaponCacheBuilt then buildWeaponCache() end
         
-        -- Fast Reload
-        if Settings.Combat.FastReload then
-            for _, v in pairs(weapons:GetChildren()) do
-                if v:FindFirstChild("ReloadTime") then
-                    if not gunModOriginalValues.ReloadTime[v] then
-                        gunModOriginalValues.ReloadTime[v] = v.ReloadTime.Value
-                    end
-                    if v.ReloadTime.Value ~= 0.01 then
-                        v.ReloadTime.Value = 0.01
-                    end
-                end
-                if v:FindFirstChild("EReloadTime") then
-                    if not gunModOriginalValues.EReloadTime[v] then
-                        gunModOriginalValues.EReloadTime[v] = v.EReloadTime.Value
-                    end
-                    if v.EReloadTime.Value ~= 0.01 then
-                        v.EReloadTime.Value = 0.01
-                    end
-                end
-            end
-        end
-        
-        -- Fast Fire Rate
-        if Settings.Combat.FastFireRate then
-            for _, v in pairs(weapons:GetDescendants()) do
-                if v.Name == "FireRate" or v.Name == "BFireRate" then
-                    if not gunModOriginalValues.FireRate[v] then
-                        gunModOriginalValues.FireRate[v] = v.Value
-                    end
-                    if v.Value ~= 0.02 then
-                        v.Value = 0.02
-                    end
-                end
-            end
-        end
-        
-        -- Always Auto
-        if Settings.Combat.AlwaysAuto then
-            for _, v in pairs(weapons:GetDescendants()) do
-                if v.Name == "Auto" or v.Name == "AutoFire" or v.Name == "Automatic" or v.Name == "AutoShoot" or v.Name == "AutoGun" then
-                    if not gunModOriginalValues.Auto[v] then
-                        gunModOriginalValues.Auto[v] = v.Value
-                    end
-                    if v.Value ~= true then
-                        v.Value = true
-                    end
-                end
-            end
-        end
-        
-        -- No Spread
-        if Settings.Combat.NoSpread then
-            for _, v in pairs(weapons:GetDescendants()) do
-                if v.Name == "MaxSpread" or v.Name == "Spread" or v.Name == "SpreadControl" then
-                    if not gunModOriginalValues.Spread[v] then
-                        gunModOriginalValues.Spread[v] = v.Value
-                    end
-                    if v.Value ~= 0 then
-                        v.Value = 0
-                    end
-                end
-            end
-        end
-        
-        -- No Recoil
-        if Settings.Combat.NoRecoil then
-            for _, v in pairs(weapons:GetDescendants()) do
-                if v.Name == "RecoilControl" or v.Name == "Recoil" then
-                    if not gunModOriginalValues.Recoil[v] then
-                        gunModOriginalValues.Recoil[v] = v.Value
-                    end
-                    if v.Value ~= 0 then
-                        v.Value = 0
-                    end
+        -- Quick pass — only touch values that drifted back (game reset them)
+        for _, v in ipairs(weaponValueCache) do
+            if v and v.Parent then
+                local n = v.Name
+                if Settings.Combat.FastReload and (n == "ReloadTime" or n == "EReloadTime") and v.Value ~= 0.01 then
+                    v.Value = 0.01
+                elseif Settings.Combat.FastFireRate and (n == "FireRate" or n == "BFireRate") and v.Value ~= 0.02 then
+                    v.Value = 0.02
+                elseif Settings.Combat.AlwaysAuto and (n == "Auto" or n == "AutoFire" or n == "Automatic" or n == "AutoShoot" or n == "AutoGun") and v.Value ~= true then
+                    v.Value = true
+                elseif Settings.Combat.NoSpread and (n == "MaxSpread" or n == "Spread" or n == "SpreadControl") and v.Value ~= 0 then
+                    v.Value = 0
+                elseif Settings.Combat.NoRecoil and (n == "RecoilControl" or n == "Recoil") and v.Value ~= 0 then
+                    v.Value = 0
                 end
             end
         end
     end)
     table.insert(allConnections, gunModConn)
-    
-    -- Restore values when individual gun mods are toggled off
-    local gunModRestoreConn = RunService.Heartbeat:Connect(function()
-        if isUnloading or _G.BinxixUnloaded then return end
-        
-        -- Only restore when a mod was just turned off (check once per second)
-        local now = tick()
-        if now - lastGunModCheck < GUN_MOD_INTERVAL then return end
-        
-        if not Settings.Combat.FastReload then
-            for obj, val in pairs(gunModOriginalValues.ReloadTime) do
-                pcall(function() if obj and obj.Parent then obj.Value = val end end)
-            end
-            gunModOriginalValues.ReloadTime = {}
-            for obj, val in pairs(gunModOriginalValues.EReloadTime) do
-                pcall(function() if obj and obj.Parent then obj.Value = val end end)
-            end
-            gunModOriginalValues.EReloadTime = {}
-        end
-        
-        if not Settings.Combat.FastFireRate then
-            for obj, val in pairs(gunModOriginalValues.FireRate) do
-                pcall(function() if obj and obj.Parent then obj.Value = val end end)
-            end
-            gunModOriginalValues.FireRate = {}
-        end
-        
-        if not Settings.Combat.AlwaysAuto then
-            for obj, val in pairs(gunModOriginalValues.Auto) do
-                pcall(function() if obj and obj.Parent then obj.Value = val end end)
-            end
-            gunModOriginalValues.Auto = {}
-        end
-        
-        if not Settings.Combat.NoSpread then
-            for obj, val in pairs(gunModOriginalValues.Spread) do
-                pcall(function() if obj and obj.Parent then obj.Value = val end end)
-            end
-            gunModOriginalValues.Spread = {}
-        end
-        
-        if not Settings.Combat.NoRecoil then
-            for obj, val in pairs(gunModOriginalValues.Recoil) do
-                pcall(function() if obj and obj.Parent then obj.Value = val end end)
-            end
-            gunModOriginalValues.Recoil = {}
-        end
-    end)
-    table.insert(allConnections, gunModRestoreConn)
     
     -- ========================================
     -- CHAT SPAMMER SYSTEM
