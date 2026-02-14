@@ -3,6 +3,10 @@
 -- Complete GUI overhaul with premium AirHub aesthetic
 -- ============================================
 
+-- VERSION INFO (update checker compares against GitHub VERSION file)
+local SCRIPT_VERSION = 344 -- bump this each time you push to source/
+local VERSION_URL = "https://raw.githubusercontent.com/binx-ux/airhub-binxix-v6/main/VERSION"
+
 -- GLOBAL UNLOAD FLAG
 _G.BinxixUnloaded = false
 
@@ -5473,4 +5477,87 @@ end)
 -- Discord invite on startup (no clipboard hijack)
 task.delay(2, function()
     sendNotification("Discord", "discord.gg/S4nPV2Rx7F — join for updates!", 5)
+end)
+
+-- ========================================
+-- UPDATE CHECKER
+-- Pings GitHub VERSION file and compares to SCRIPT_VERSION
+-- ========================================
+task.delay(3, function()
+    local success, result = pcall(function()
+        return game:HttpGet(VERSION_URL)
+    end)
+    
+    if success and result then
+        local latestVersion = tonumber(result:match("%d+"))
+        
+        if latestVersion and latestVersion > SCRIPT_VERSION then
+            -- New version available — show persistent notification
+            sendNotification("Update Available", "v6." .. latestVersion .. " is out! You're on v6." .. SCRIPT_VERSION, 8)
+            
+            -- Also show a banner in the GUI
+            task.wait(1)
+            pcall(function()
+                local gui = player:FindFirstChild("PlayerGui") and player.PlayerGui:FindFirstChild("BinxixHub_V6")
+                if gui then
+                    local updateBanner = Instance.new("TextButton")
+                    updateBanner.Size = UDim2.new(0, 240, 0, 28)
+                    updateBanner.Position = UDim2.new(0.5, -120, 0, 0)
+                    updateBanner.AnchorPoint = Vector2.new(0, 0)
+                    updateBanner.BackgroundColor3 = Color3.fromRGB(180, 80, 40)
+                    updateBanner.BorderSizePixel = 0
+                    updateBanner.Text = "⬆ Update v6." .. latestVersion .. " available — click to copy loadstring"
+                    updateBanner.TextColor3 = Color3.fromRGB(255, 230, 200)
+                    updateBanner.TextSize = 11
+                    updateBanner.Font = Enum.Font.SourceSansBold
+                    updateBanner.ZIndex = 100
+                    updateBanner.Parent = gui
+                    
+                    local bannerCorner = Instance.new("UICorner")
+                    bannerCorner.CornerRadius = UDim.new(0, 4)
+                    bannerCorner.Parent = updateBanner
+                    
+                    -- Hover effect
+                    updateBanner.MouseEnter:Connect(function()
+                        updateBanner.BackgroundColor3 = Color3.fromRGB(220, 100, 50)
+                    end)
+                    updateBanner.MouseLeave:Connect(function()
+                        updateBanner.BackgroundColor3 = Color3.fromRGB(180, 80, 40)
+                    end)
+                    
+                    -- Click to copy loadstring
+                    updateBanner.MouseButton1Click:Connect(function()
+                        pcall(function()
+                            if setclipboard then
+                                setclipboard('loadstring(game:HttpGet("https://raw.githubusercontent.com/binx-ux/airhub-binxix-v6/main/script/aimbot"))()')
+                                updateBanner.Text = "✓ Loadstring copied! Re-execute to update"
+                                updateBanner.BackgroundColor3 = Color3.fromRGB(40, 120, 60)
+                                task.wait(3)
+                                updateBanner:Destroy()
+                            end
+                        end)
+                    end)
+                    
+                    -- Auto-dismiss after 15 seconds
+                    task.delay(15, function()
+                        if updateBanner and updateBanner.Parent then
+                            for i = 0, 1, 0.05 do
+                                pcall(function()
+                                    updateBanner.BackgroundTransparency = i
+                                    updateBanner.TextTransparency = i
+                                end)
+                                task.wait(0.02)
+                            end
+                            pcall(function() updateBanner:Destroy() end)
+                        end
+                    end)
+                end
+            end)
+            
+        elseif latestVersion and latestVersion == SCRIPT_VERSION then
+            -- Up to date
+            sendNotification("Up to Date", "v6." .. SCRIPT_VERSION .. " — latest version", 3)
+        end
+        -- If latestVersion < SCRIPT_VERSION, you're on a dev build — say nothing
+    end
 end)
