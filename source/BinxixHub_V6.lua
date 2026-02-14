@@ -4053,6 +4053,20 @@ local function createAirHubStyleGUI()
         Settings.Combat.KillAura = false
         Settings.Combat.TriggerBot = false
         Settings.Misc.ChatSpammer = false
+        Settings.Movement.SpeedEnabled = false
+        -- Reset WalkSpeed and clean up speed velocity
+        pcall(function()
+            local char = player.Character
+            if char then
+                local h = char:FindFirstChild("Humanoid")
+                if h then h.WalkSpeed = 16 end
+                local hrp = char:FindFirstChild("HumanoidRootPart")
+                if hrp then
+                    local bv = hrp:FindFirstChild("BinxixSpeedVelocity")
+                    if bv then bv:Destroy() end
+                end
+            end
+        end)
         -- Disable gun mods and restore values
         Settings.Combat.FastReload = false
         Settings.Combat.FastFireRate = false
@@ -4574,13 +4588,13 @@ local function createAirHubStyleGUI()
         local speed = Settings.Movement.Speed
         
         if method == "CFrame" then
-            -- CFrame method — directly move the character
+            -- CFrame method — move in world space so WASD matches camera direction
             if speedVelocity then
                 pcall(function() speedVelocity:Destroy() end)
                 speedVelocity = nil
             end
-            local moveCF = CFrame.new(moveDir * (speed / 60))
-            hrp.CFrame = hrp.CFrame * moveCF
+            local worldMove = moveDir * speed * dt
+            hrp.CFrame = hrp.CFrame + Vector3.new(worldMove.X, 0, worldMove.Z)
             
         elseif method == "Velocity" then
             -- Velocity method — use BodyVelocity
@@ -5359,6 +5373,10 @@ local function createAirHubStyleGUI()
         -- Toggle GUI with custom keybind
         if input.KeyCode == currentToggleKey then
             mainFrame.Visible = not mainFrame.Visible
+            -- Close any open dropdowns when hiding
+            if not mainFrame.Visible then
+                pcall(function() closeTpDropdown() end)
+            end
         end
         
         -- Toggle Fly with F key
@@ -5444,20 +5462,15 @@ task.spawn(function()
     loadedNotif:Destroy()
 end)
 
-print("Binxix Hub V6 (AirHub V2 Style) loaded successfully!")
+print("Binxix Hub V6.4 (AirHub V2 Style) loaded successfully!")
 print("Press RightControl to toggle the GUI")
 
 -- Send startup notification
 task.delay(0.5, function()
-    sendNotification("Binxix Hub V6", "Loaded — press RightControl to toggle", 4)
+    sendNotification("Binxix Hub V6.4", "Loaded! RCtrl = toggle GUI | " .. currentGameData.name, 4)
 end)
 
--- Discord invite on startup
+-- Discord invite on startup (no clipboard hijack)
 task.delay(2, function()
-    pcall(function()
-        if setclipboard then
-            setclipboard("https://discord.gg/S4nPV2Rx7F")
-        end
-    end)
-    sendNotification("Discord", "Join the Binxix Hub Discord! Invite copied to clipboard", 5)
+    sendNotification("Discord", "discord.gg/S4nPV2Rx7F — join for updates!", 5)
 end)
