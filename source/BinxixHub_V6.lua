@@ -4,7 +4,7 @@
 -- ============================================
 
 -- VERSION INFO (update checker compares against GitHub VERSION file)
-local SCRIPT_VERSION = 345 -- bump this each time you push to source/
+local SCRIPT_VERSION = 346 -- bump this each time you push to source/
 local VERSION_URL = "https://raw.githubusercontent.com/binx-ux/airhub-binxix-v6/main/VERSION"
 
 -- GLOBAL UNLOAD FLAG
@@ -2204,96 +2204,142 @@ local function createAirHubStyleGUI()
     local lastSafeTPPosition = nil
     
     local function startAntiDeath()
-        if antiDeathConn then return end
+    if antiDeathConn then return end
+    
+    -- ForceField application loop
+    antiDeathConn = RunService.Heartbeat:Connect(function()
+        if isUnloading or _G.BinxixUnloaded then return end
+        if not Settings.Misc.AutoTPLoop or not Settings.Misc.AutoTPAntiDeath then return end
         
-        -- Health loop — max health every frame
-        antiDeathConn = RunService.Heartbeat:Connect(function()
-            if isUnloading or _G.BinxixUnloaded then return end
+        local char = player.Character
+        if not char then return end
+        
+        -- Force max health
+        local humanoid = char:FindFirstChild("Humanoid")
+        if humanoid and humanoid.Health > 0 then
+            humanoid.Health = humanoid.MaxHealth
+        end
+        
+        -- Force apply ForceField - check if it exists and create if missing
+        local hasForceField = false
+        for _, child in ipairs(char:GetChildren()) do
+            if child:IsA("ForceField") then
+                hasForceField = true
+                break
+            end
+        end
+        
+        if not hasForceField then
+            pcall(function()
+                local ff = Instance.new("ForceField")
+                ff.Name = "BinxixAntiDeath"
+                ff.Visible = false
+                ff.Parent = char
+            end)
+        end
+    end)
+    table.insert(allConnections, antiDeathConn)
+    
+    -- Auto-respawn + TP back if we somehow die
+    local function hookDeath()
+        local char = player.Character
+        if not char then return end
+        local humanoid = char:FindFirstChild("Humanoid")
+        if not humanoid then return end
+        
+        if antiDeathDiedConn then
+            pcall(function() antiDeathDiedConn:Disconnect() end)
+        end
+        
+        antiDeathDiedConn = humanoid.Died:Connect(function()
             if not Settings.Misc.AutoTPLoop or not Settings.Misc.AutoTPAntiDeath then return end
             
-            local char = player.Character
-            if not char then return end
-            local humanoid = char:FindFirstChild("Humanoid")
-            if humanoid and humanoid.Health > 0 then
-                humanoid.Health = humanoid.MaxHealth
-            end
+            -- Save last position
+            local savedPos = lastSafeTPPosition
             
-            -- Also add ForceField if not present
-            if not char:FindFirstChildOfClass("ForceField") then
+            -- Wait for respawn
+            task.wait(0.1)
+            player:LoadCharacter()
+            
+            -- Wait for new character
+            local newChar = player.CharacterAdded:Wait()
+            task.wait(0.5)
+            
+            local newHRP = newChar:WaitForChild("HumanoidRootPart", 5)
+            local newHumanoid = newChar:WaitForChild("Humanoid", 5)
+            
+            if newHRP and savedPos and Settings.Misc.AutoTPLoop then
+                -- Immediately apply ForceField on respawn
                 pcall(function()
                     local ff = Instance.new("ForceField")
                     ff.Name = "BinxixAntiDeath"
                     ff.Visible = false
-                    ff.Parent = char
+                    ff.Parent = newChar
                 end)
-            end
-        end)
-        table.insert(allConnections, antiDeathConn)
-        
-        -- Auto-respawn + TP back if we somehow die
-        local function hookDeath()
-            local char = player.Character
-            if not char then return end
-            local humanoid = char:FindFirstChild("Humanoid")
-            if not humanoid then return end
-            
-            if antiDeathDiedConn then
-                pcall(function() antiDeathDiedConn:Disconnect() end)
-            end
-            
-            antiDeathDiedConn = humanoid.Died:Connect(function()
-                if not Settings.Misc.AutoTPLoop or not Settings.Misc.AutoTPAntiDeath then return end
                 
-                -- Save last position
-                local savedPos = lastSafeTPPosition
-                
-                -- Wait for respawn
-                task.wait(0.1)
-                player.Character = nil -- force respawn in some games
-                
-                -- Wait for new character
-                local newChar = player.CharacterAdded:Wait()
-                task.wait(0.5) -- wait for character to fully load
-                
-                local newHRP = newChar:WaitForChild("HumanoidRootPart", 5)
-                if newHRP and savedPos and Settings.Misc.AutoTPLoop then
-                    newHRP.CFrame = savedPos
+                -- Set max health
+                if newHumanoid then
+                    newHumanoid.Health = newHumanoid.MaxHealth
                 end
                 
-                -- Re-hook death on new character
-                hookDeath()
+                -- TP back to saved position
+                task.wait(0.1)
+                newHRP.CFrame = savedPos
+            end
+            
+            -- Re-hook death on new character
+            hookDeath()
+        end)
+        table.insert(allConnections, antiDeathDiedConn)
+    end
+    
+    hookDeath()
+    
+    -- Also hook CharacterAdded to apply ForceField on any new character spawn
+    local charAddedConn = player.CharacterAdded:Connect(function(newChar)
+        task.wait(0.5)
+        if Settings.Misc.AutoTPLoop and Settings.Misc.AutoTPAntiDeath then
+            -- Force apply ForceField immediately
+            pcall(function()
+                local ff = Instance.new("ForceField")
+                ff.Name = "BinxixAntiDeath"
+                ff.Visible = false
+                ff.Parent = newChar
             end)
-            table.insert(allConnections, antiDeathDiedConn)
-        end
-        
-        hookDeath()
-        player.CharacterAdded:Connect(function()
-            task.wait(0.5)
-            if Settings.Misc.AutoTPLoop and Settings.Misc.AutoTPAntiDeath then
-                hookDeath()
+            
+            -- Set max health
+            local humanoid = newChar:WaitForChild("Humanoid", 5)
+            if humanoid then
+                humanoid.Health = humanoid.MaxHealth
             end
-        end)
+            
+            hookDeath()
+        end
+    end)
+    table.insert(allConnections, charAddedConn)
+end
+
+local function stopAntiDeath()
+    if antiDeathConn then
+        pcall(function() antiDeathConn:Disconnect() end)
+        antiDeathConn = nil
     end
-    
-    local function stopAntiDeath()
-        if antiDeathConn then
-            pcall(function() antiDeathConn:Disconnect() end)
-            antiDeathConn = nil
-        end
-        if antiDeathDiedConn then
-            pcall(function() antiDeathDiedConn:Disconnect() end)
-            antiDeathDiedConn = nil
-        end
-        -- Remove ForceField
-        pcall(function()
-            local char = player.Character
-            if char then
-                local ff = char:FindFirstChild("BinxixAntiDeath")
-                if ff then ff:Destroy() end
+    if antiDeathDiedConn then
+        pcall(function() antiDeathDiedConn:Disconnect() end)
+        antiDeathDiedConn = nil
+    end
+    -- Remove all BinxixAntiDeath ForceFields
+    pcall(function()
+        local char = player.Character
+        if char then
+            for _, child in ipairs(char:GetChildren()) do
+                if child:IsA("ForceField") and child.Name == "BinxixAntiDeath" then
+                    child:Destroy()
+                end
             end
-        end)
-    end
-    
+        end
+    end)
+end
     local function startAutoTPLoop()
         if autoTPLoopConn then return end -- Already running
         
