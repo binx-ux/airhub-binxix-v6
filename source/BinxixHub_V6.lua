@@ -1,13 +1,7 @@
--- ============================================
--- BINXIX HUB V6 - AIRHUB V2 STYLE REDESIGN
--- Complete GUI overhaul with premium AirHub aesthetic
--- ============================================
 
--- VERSION INFO (update checker compares against GitHub VERSION file)
-local SCRIPT_VERSION = 346 -- bump this each time you push to source/
+local SCRIPT_VERSION = 346 
 local VERSION_URL = "https://raw.githubusercontent.com/binx-ux/airhub-binxix-v6/main/VERSION"
 
--- GLOBAL UNLOAD FLAG
 _G.BinxixUnloaded = false
 
 local Players = game:GetService("Players")
@@ -22,12 +16,7 @@ local player = Players.LocalPlayer
 
 local currentPlaceId = game.PlaceId
 
--- ============================================
--- AIRHUB V2 STYLE COLOR PALETTE
--- ============================================
--- ============================================
--- THEME SYSTEM
--- ============================================
+
 local ThemePresets = {
     Purple = {
         Background = Color3.fromRGB(25, 25, 30), BackgroundDark = Color3.fromRGB(18, 18, 22), BackgroundLight = Color3.fromRGB(35, 35, 42),
@@ -87,7 +76,7 @@ for k, v in pairs(ThemePresets.Purple) do
     Theme[k] = v
 end
 
--- List of GUI elements that need recoloring when theme changes (populated during GUI creation)
+
 local themeUpdateCallbacks = {}
 
 local function applyTheme(themeName)
@@ -97,15 +86,13 @@ local function applyTheme(themeName)
     for k, v in pairs(preset) do
         Theme[k] = v
     end
-    -- Fire all registered recolor callbacks
+    
     for _, cb in ipairs(themeUpdateCallbacks) do
         pcall(cb)
     end
 end
 
--- ============================================
--- GAME DETECTION & EXTERNAL SCRIPT LOADING
--- ============================================
+
 local supportedGames = {
     [286090429] = {name = "Arsenal", espEnabled = true},
     [9157605735] = {name = "MiscGunTest-X", espEnabled = false},
@@ -120,9 +107,9 @@ local supportedGames = {
 local currentGameData = supportedGames[currentPlaceId] or {name = "Universal", espEnabled = true}
 local gameConfig = {espEnabled = currentGameData.espEnabled}
 
--- External script redirect for MM2 and TSB
+
 if currentGameData.loadScript then
-    -- Show selection GUI: load external script or Binxix Hub
+
     local choiceMade = false
     local loadExternal = false
     
@@ -133,7 +120,7 @@ if currentGameData.loadScript then
     choiceGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     choiceGui.Parent = player:WaitForChild("PlayerGui")
     
-    -- Dim background
+    
     local dimBg = Instance.new("Frame")
     dimBg.Size = UDim2.new(1, 0, 1, 0)
     dimBg.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
@@ -181,7 +168,7 @@ if currentGameData.loadScript then
     subtitleLabel.ZIndex = 102
     subtitleLabel.Parent = choiceFrame
     
-    -- External script button
+  
     local extBtn = Instance.new("TextButton")
     extBtn.Size = UDim2.new(0, 135, 0, 40)
     extBtn.Position = UDim2.new(0, 20, 0, 72)
@@ -198,7 +185,7 @@ if currentGameData.loadScript then
     extCorner.CornerRadius = UDim.new(0, 6)
     extCorner.Parent = extBtn
     
-    -- Binxix Hub button
+    
     local hubBtn = Instance.new("TextButton")
     hubBtn.Size = UDim2.new(0, 135, 0, 40)
     hubBtn.Position = UDim2.new(0, 165, 0, 72)
@@ -215,7 +202,7 @@ if currentGameData.loadScript then
     hubCorner.CornerRadius = UDim.new(0, 6)
     hubCorner.Parent = hubBtn
     
-    -- Info text
+    
     local infoTxt = Instance.new("TextLabel")
     infoTxt.Size = UDim2.new(1, -16, 0, 14)
     infoTxt.Position = UDim2.new(0, 8, 0, 120)
@@ -227,7 +214,7 @@ if currentGameData.loadScript then
     infoTxt.ZIndex = 102
     infoTxt.Parent = choiceFrame
     
-    -- Auto-select timer label
+  
     local timerLabel = Instance.new("TextLabel")
     timerLabel.Size = UDim2.new(1, -16, 0, 14)
     timerLabel.Position = UDim2.new(0, 8, 0, 136)
@@ -239,7 +226,7 @@ if currentGameData.loadScript then
     timerLabel.ZIndex = 102
     timerLabel.Parent = choiceFrame
     
-    -- Hover effects
+ 
     extBtn.MouseEnter:Connect(function() extBtn.BackgroundColor3 = Color3.fromRGB(50, 130, 75) end)
     extBtn.MouseLeave:Connect(function() extBtn.BackgroundColor3 = Color3.fromRGB(40, 100, 60) end)
     hubBtn.MouseEnter:Connect(function() hubBtn.BackgroundColor3 = Color3.fromRGB(100, 50, 130) end)
@@ -255,7 +242,7 @@ if currentGameData.loadScript then
         loadExternal = false
     end)
     
-    -- Auto-select external after 10 seconds if no choice made
+  
     task.spawn(function()
         for i = 10, 1, -1 do
             if choiceMade then break end
@@ -268,11 +255,11 @@ if currentGameData.loadScript then
         end
     end)
     
-    -- Wait for choice
+    
     while not choiceMade do task.wait(0.1) end
     
     if loadExternal then
-        -- Load external script
+        
         _G.BinxixUnloaded = true
         
         local loadingLabel = Instance.new("TextLabel")
@@ -307,16 +294,14 @@ if currentGameData.loadScript then
         
         return
     else
-        -- User chose Binxix Hub — destroy selection GUI and continue loading
+        
         choiceGui:Destroy()
-        -- Enable ESP for these games when using Binxix Hub
+      
         gameConfig.espEnabled = true
     end
 end
 
--- ============================================
--- SETTINGS & STATE MANAGEMENT
--- ============================================
+
 local Settings = {
     ESP = {
         Enabled = false,
@@ -426,9 +411,7 @@ local Settings = {
     },
 }
 
--- ============================================
--- PROFILE SYSTEM
--- ============================================
+
 local PROFILE_DIR = "BinxixHubV6_Profiles/"
 local currentProfileName = "Default"
 
@@ -544,7 +527,7 @@ local flyBodyVelocity = nil
 local flyBodyGyro = nil
 local isFlying = false
 
--- Skeleton bone connections for R15
+
 local SKELETON_CONNECTIONS_R15 = {
     {"Head", "UpperTorso"},
     {"UpperTorso", "LowerTorso"},
@@ -562,7 +545,7 @@ local SKELETON_CONNECTIONS_R15 = {
     {"RightLowerLeg", "RightFoot"},
 }
 
--- Skeleton bone connections for R6
+
 local SKELETON_CONNECTIONS_R6 = {
     {"Head", "Torso"},
     {"Torso", "Left Arm"},
@@ -571,21 +554,18 @@ local SKELETON_CONNECTIONS_R6 = {
     {"Torso", "Right Leg"},
 }
 
--- ============================================
--- NOTIFICATION SYSTEM
--- ============================================
+
 local notificationQueue = {}
-local notifScreenGui = nil -- Set when GUI is created
+local notifScreenGui = nil 
 
 local function sendNotification(title, message, duration)
     duration = duration or 3
     
-    -- Streamer Mode: suppress notifications if enabled
+   
     if Settings.StreamerMode.Enabled and Settings.StreamerMode.HideNotifications then return end
     
     if not notifScreenGui then return end
     
-    -- Create notification container if not exists
     local notifHolder = notifScreenGui:FindFirstChild("NotifHolder")
     if not notifHolder then
         notifHolder = Instance.new("Frame")
@@ -596,30 +576,30 @@ local function sendNotification(title, message, duration)
         notifHolder.Parent = notifScreenGui
     end
     
-    -- Count existing notifications for stacking
+    
     local notifCount = 0
     for _, child in ipairs(notifHolder:GetChildren()) do
         if child:IsA("Frame") then notifCount = notifCount + 1 end
     end
     
-    -- Create notification frame
+   
     local notif = Instance.new("Frame")
     notif.Size = UDim2.new(1, 0, 0, 50)
-    notif.Position = UDim2.new(1, 10, 0, notifCount * 56) -- Start offscreen right
+    notif.Position = UDim2.new(1, 10, 0, notifCount * 56) 
     notif.BackgroundColor3 = Color3.fromRGB(22, 22, 28)
     notif.BorderSizePixel = 1
     notif.BorderColor3 = Color3.fromRGB(60, 60, 75)
     notif.ClipsDescendants = true
     notif.Parent = notifHolder
     
-    -- Accent bar on left
+   
     local accentBar = Instance.new("Frame")
     accentBar.Size = UDim2.new(0, 3, 1, 0)
     accentBar.BackgroundColor3 = Color3.fromRGB(200, 100, 180)
     accentBar.BorderSizePixel = 0
     accentBar.Parent = notif
     
-    -- Title
+    
     local titleLabel = Instance.new("TextLabel")
     titleLabel.Size = UDim2.new(1, -14, 0, 18)
     titleLabel.Position = UDim2.new(0, 10, 0, 4)
@@ -632,7 +612,7 @@ local function sendNotification(title, message, duration)
     titleLabel.TextTruncate = Enum.TextTruncate.AtEnd
     titleLabel.Parent = notif
     
-    -- Message
+    
     local msgLabel = Instance.new("TextLabel")
     msgLabel.Size = UDim2.new(1, -14, 0, 20)
     msgLabel.Position = UDim2.new(0, 10, 0, 22)
@@ -645,7 +625,7 @@ local function sendNotification(title, message, duration)
     msgLabel.TextTruncate = Enum.TextTruncate.AtEnd
     msgLabel.Parent = notif
     
-    -- Progress bar (bottom, shrinks over time)
+  
     local progressBar = Instance.new("Frame")
     progressBar.Size = UDim2.new(1, 0, 0, 2)
     progressBar.Position = UDim2.new(0, 0, 1, -2)
@@ -653,14 +633,14 @@ local function sendNotification(title, message, duration)
     progressBar.BorderSizePixel = 0
     progressBar.Parent = notif
     
-    -- Slide in animation
+   
     task.spawn(function()
         local tweenIn = TweenService:Create(notif, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
             Position = UDim2.new(0, 0, 0, notifCount * 56)
         })
         tweenIn:Play()
         
-        -- Progress bar shrink
+       
         local tweenProgress = TweenService:Create(progressBar, TweenInfo.new(duration, Enum.EasingStyle.Linear), {
             Size = UDim2.new(0, 0, 0, 2)
         })
@@ -668,7 +648,7 @@ local function sendNotification(title, message, duration)
         
         task.wait(duration)
         
-        -- Slide out
+        
         local tweenOut = TweenService:Create(notif, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {
             Position = UDim2.new(1, 10, 0, notif.Position.Y.Offset)
         })
@@ -676,7 +656,7 @@ local function sendNotification(title, message, duration)
         tweenOut.Completed:Wait()
         notif:Destroy()
         
-        -- Restack remaining notifications
+       
         if notifHolder and notifHolder.Parent then
             local idx = 0
             for _, child in ipairs(notifHolder:GetChildren()) do
@@ -691,15 +671,13 @@ local function sendNotification(title, message, duration)
     end)
 end
 
--- ============================================
--- UTILITY FUNCTIONS
--- ============================================
+
 local function isSameTeam(player1, player2)
     if not player1.Team or not player2.Team then return false end
     return player1.Team == player2.Team
 end
 
--- ESP filter-aware target check
+
 local function isValidESPTarget(admin, target)
     if target == admin then return false end
     local mode = Settings.ESP.FilterMode
@@ -714,7 +692,7 @@ local function isValidESPTarget(admin, target)
     end
 end
 
--- Non-ESP target check (aimbot, auto TP — always enemies only)
+
 local function isValidTarget(admin, target)
     if target == admin then return false end
     if isSameTeam(admin, target) then return false end
@@ -907,9 +885,7 @@ local function getHealthColor(percent)
     else return Color3.fromRGB(255, 60, 60) end
 end
 
--- ============================================
--- COMPLETE ESP SYSTEM
--- ============================================
+
 local espObjects = {}
 
 local function createESPForPlayer(target)
@@ -1102,9 +1078,7 @@ local function updateESP()
     end
 end
 
--- ============================================
--- TARGET LOCK MARKER (Highlight)
--- ============================================
+
 local targetHighlight = nil
 
 local function updateTargetMarker()
@@ -1134,9 +1108,7 @@ local function updateTargetMarker()
     end
 end
 
--- ============================================
--- IMPROVED NO FOG FUNCTION
--- ============================================
+
 local originalFogSettings = nil
 
 local function enableNoFog()
@@ -1200,9 +1172,7 @@ local function disableNoFog()
     end
 end
 
--- ============================================
--- AIRHUB V2 STYLE GUI CREATION
--- ============================================
+
 local function createAirHubStyleGUI()
     -- Main ScreenGui
     local screenGui = Instance.new("ScreenGui")
@@ -1350,9 +1320,7 @@ local function createAirHubStyleGUI()
         end
     end
     
-    -- ========================================
-    -- SKELETON ESP (Optimized — line pooling, no per-frame GC)
-    -- ========================================
+   
     local skeletonContainer = Instance.new("Frame")
     skeletonContainer.Name = "SkeletonContainer"
     skeletonContainer.Size = UDim2.new(1, 0, 1, 0)
@@ -1459,9 +1427,7 @@ local function createAirHubStyleGUI()
         end
     end
     
-    -- ========================================
-    -- OFFSCREEN ARROWS
-    -- ========================================
+    
     local arrowContainer = Instance.new("Frame")
     arrowContainer.Name = "ArrowContainer"
     arrowContainer.Size = UDim2.new(1, 0, 1, 0)
@@ -2061,14 +2027,7 @@ local function createAirHubStyleGUI()
         return container
     end
     
-    -- ========================================
-    -- CREATE TAB PAGES
-    -- ========================================
-    
-    -- ========================================
-    -- AUTO TP LOOP SYSTEM (defined before tabs so callbacks can reference it)
-    -- Teleports to nearest enemy, waits for them to die, moves to next
-    -- ========================================
+  
     local autoTPTarget = nil
     
     -- Check if a target is protected (forcefield, safe zone, spawn, godmode)
