@@ -1,5 +1,5 @@
 
-local SCRIPT_VERSION = 346 
+local SCRIPT_VERSION = 347 
 local VERSION_URL = "https://raw.githubusercontent.com/binx-ux/airhub-binxix-v6/main/VERSION"
 
 _G.BinxixUnloaded = false
@@ -824,23 +824,23 @@ local function startAimbotTracking()
         local camera = Workspace.CurrentCamera
         if not camera then return end
         
-        -- Find best target if we don't have one or current is invalid
+       
         if not currentTarget or not currentTarget.Character then
             currentTarget = getNearestValidTarget()
         else
-            -- Check if current target is still valid
+            
             local targetChar = currentTarget.Character
             if targetChar then
                 local targetHumanoid = targetChar:FindFirstChild("Humanoid")
                 if not targetHumanoid or targetHumanoid.Health <= 0 then
                     currentTarget = getNearestValidTarget()
                 elseif not isInFOV(currentTarget, Settings.Aimbot.FOVRadius) then
-                    -- Target left FOV, find new one
+                    
                     if not Settings.Aimbot.StickyAim then
                         currentTarget = getNearestValidTarget()
                     end
                 elseif Settings.Aimbot.RequireLOS and not hasLineOfSight(player, currentTarget) then
-                    -- Lost line of sight
+                  
                     currentTarget = getNearestValidTarget()
                 end
             else
@@ -848,7 +848,7 @@ local function startAimbotTracking()
             end
         end
         
-        -- Aim at target
+     
         if currentTarget and currentTarget.Character then
             local targetPos = getPredictedPosition(currentTarget.Character)
             if targetPos then
@@ -899,7 +899,7 @@ local function createESPForPlayer(target)
         healthBar = nil,
     }
     
-    -- Create BillboardGui for name/distance/health
+    
     local billboard = Instance.new("BillboardGui")
     billboard.Name = "BinxixESP"
     billboard.AlwaysOnTop = true
@@ -998,26 +998,26 @@ local function updateESP()
                 local targetHumanoid = targetChar:FindFirstChild("Humanoid")
                 
                 if targetHRP and targetHead and targetHumanoid then
-                    -- Create ESP if not exists
+                   
                     if not espObjects[target.UserId] then
                         createESPForPlayer(target)
                     end
                     
                     local espData = espObjects[target.UserId]
                     if espData and espData.billboard then
-                        -- Attach billboard to head
+                       
                         espData.billboard.Adornee = targetHead
                         espData.billboard.Parent = targetChar
                         espData.billboard.Enabled = true
                         
-                        -- Calculate distance
+                        
                         local distance = (myHRP.Position - targetHRP.Position).Magnitude
                         local espColor = getESPColor(distance)
                         
-                        -- Update name
+                       
                         if espData.nameLabel then
                             espData.nameLabel.Visible = Settings.ESP.NameEnabled
-                            -- Streamer Mode: hide real names
+                           
                             if Settings.StreamerMode.Enabled and Settings.StreamerMode.HideNames then
                                 espData.nameLabel.Text = Settings.StreamerMode.FakeName .. " #" .. tostring(target.UserId):sub(-3)
                             else
@@ -1026,14 +1026,14 @@ local function updateESP()
                             espData.nameLabel.TextColor3 = Settings.ESP.RainbowColor and Color3.fromHSV(tick() % 5 / 5, 1, 1) or espColor
                         end
                         
-                        -- Update distance
+                      
                         if espData.distanceLabel then
                             espData.distanceLabel.Visible = Settings.ESP.DistanceEnabled
                             espData.distanceLabel.Text = string.format("[%dm]", math.floor(distance))
                             espData.distanceLabel.TextColor3 = espColor
                         end
                         
-                        -- Update health
+                       
                         if espData.healthLabel then
                             espData.healthLabel.Visible = Settings.ESP.HealthEnabled
                             local health = targetHumanoid.Health
@@ -1043,14 +1043,14 @@ local function updateESP()
                             espData.healthLabel.TextColor3 = getHealthColor(healthPercent)
                         end
                         
-                        -- Box ESP using Highlight
+                     
                         if Settings.ESP.BoxEnabled then
                             if not espData.boxHighlight then
                                 espData.boxHighlight = Instance.new("Highlight")
                                 espData.boxHighlight.Name = "BinxixBoxESP"
                                 espData.boxHighlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
                             end
-                            -- Chams: if enabled, show fill color through walls
+                           
                             if Settings.ESP.ChamsEnabled then
                                 espData.boxHighlight.FillTransparency = Settings.ESP.ChamsFillTransparency
                                 espData.boxHighlight.FillColor = Settings.ESP.RainbowColor and Color3.fromHSV(tick() % 5 / 5, 1, 1) or espColor
@@ -1070,7 +1070,7 @@ local function updateESP()
                 end
             end
         else
-            -- Remove ESP for invalid targets
+           
             if espObjects[target.UserId] then
                 removeESPForPlayer(target)
             end
@@ -1082,7 +1082,7 @@ end
 local targetHighlight = nil
 
 local function updateTargetMarker()
-    -- Hide lock marker when Streamer Mode is on
+   
     if Settings.StreamerMode.Enabled then
         if targetHighlight then
             targetHighlight.Parent = nil
@@ -1112,7 +1112,7 @@ end
 local originalFogSettings = nil
 
 local function enableNoFog()
-    -- Store original settings
+
     if not originalFogSettings then
         originalFogSettings = {
             FogStart = Lighting.FogStart,
@@ -1121,7 +1121,7 @@ local function enableNoFog()
             Atmospheres = {}
         }
         
-        -- Store atmosphere settings
+        
         for _, effect in ipairs(Lighting:GetChildren()) do
             if effect:IsA("Atmosphere") then
                 table.insert(originalFogSettings.Atmospheres, {
@@ -1137,11 +1137,11 @@ local function enableNoFog()
         end
     end
     
-    -- Remove fog
+    
     Lighting.FogStart = 100000
     Lighting.FogEnd = 100000
     
-    -- Remove atmosphere effects
+    
     for _, effect in ipairs(Lighting:GetChildren()) do
         if effect:IsA("Atmosphere") then
             effect.Density = 0
@@ -1158,7 +1158,7 @@ local function disableNoFog()
         Lighting.FogEnd = originalFogSettings.FogEnd
         Lighting.FogColor = originalFogSettings.FogColor
         
-        -- Restore atmosphere settings
+       
         for _, data in ipairs(originalFogSettings.Atmospheres) do
             if data.instance and data.instance.Parent then
                 data.instance.Density = data.Density
@@ -1174,16 +1174,16 @@ end
 
 
 local function createAirHubStyleGUI()
-    -- Main ScreenGui
+ 
     local screenGui = Instance.new("ScreenGui")
     screenGui.Name = "BinxixHub_V6"
     screenGui.ResetOnSpawn = false
     screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     screenGui.IgnoreGuiInset = true
     screenGui.Parent = player:WaitForChild("PlayerGui")
-    notifScreenGui = screenGui -- Set reference for notification system
+    notifScreenGui = screenGui 
     
-    -- FOV Circle for Aimbot
+   
     local fovCircle = Instance.new("Frame")
     fovCircle.Name = "FOVCircle"
     fovCircle.Size = UDim2.new(0, 300, 0, 300)
@@ -1203,12 +1203,11 @@ local function createAirHubStyleGUI()
     fovStroke.Transparency = 0.5
     fovStroke.Parent = fovCircle
     
-    -- Update FOV circle every frame
     local fovUpdateConn = RunService.RenderStepped:Connect(function()
         if isUnloading or _G.BinxixUnloaded then return end
         local radius = Settings.Aimbot.FOVRadius
         fovCircle.Size = UDim2.new(0, radius * 2, 0, radius * 2)
-        -- Hide FOV circle when Streamer Mode is on
+        
         if Settings.StreamerMode.Enabled then
             fovCircle.Visible = false
         else
@@ -1218,7 +1217,7 @@ local function createAirHubStyleGUI()
     end)
     table.insert(allConnections, fovUpdateConn)
     
-    -- Tracer Container (Optimized — line pooling)
+    
     local tracerContainer = Instance.new("Frame")
     tracerContainer.Name = "TracerContainer"
     tracerContainer.Size = UDim2.new(1, 0, 1, 0)
@@ -1327,11 +1326,11 @@ local function createAirHubStyleGUI()
     skeletonContainer.BackgroundTransparency = 1
     skeletonContainer.Parent = screenGui
     
-    local skeletonLinePool = {} -- All pre-created line frames
-    local skeletonPoolIndex = 0 -- How many are currently in use
-    local SKELETON_POOL_MAX = 200 -- Max lines we'll ever need (14 bones * ~12 players)
+    local skeletonLinePool = {} 
+    local skeletonPoolIndex = 0
+    local SKELETON_POOL_MAX = 200 
     
-    -- Pre-create the line pool
+  
     for i = 1, SKELETON_POOL_MAX do
         local line = Instance.new("Frame")
         line.BackgroundColor3 = Color3.new(1, 1, 1)
@@ -1343,7 +1342,7 @@ local function createAirHubStyleGUI()
     end
     
     local function resetSkeletonPool()
-        -- Hide all lines from last frame
+       
         for i = 1, skeletonPoolIndex do
             skeletonLinePool[i].Visible = false
         end
@@ -1382,7 +1381,7 @@ local function createAirHubStyleGUI()
                         distance = (myHRP.Position - targetHRP.Position).Magnitude
                     end
                     
-                    -- Skip skeleton for very far players to save performance
+                   
                     if distance > 500 then continue end
                     
                     local espColor = getESPColor(distance)
@@ -1390,7 +1389,7 @@ local function createAirHubStyleGUI()
                         espColor = Color3.fromHSV(tick() % 5 / 5, 1, 1)
                     end
                     
-                    -- Determine if R15 or R6
+                   
                     local isR15 = targetChar:FindFirstChild("UpperTorso") ~= nil
                     local connections = isR15 and SKELETON_CONNECTIONS_R15 or SKELETON_CONNECTIONS_R6
                     
@@ -1437,14 +1436,14 @@ local function createAirHubStyleGUI()
     local offscreenArrows = {}
     
     local function createArrow(color, size)
-        -- Container for the arrow + label
+        
         local container = Instance.new("Frame")
         container.Size = UDim2.new(0, size + 30, 0, size + 16)
         container.BackgroundTransparency = 1
         container.AnchorPoint = Vector2.new(0.5, 0.5)
         container.Parent = arrowContainer
         
-        -- Outer glow arrow (slightly larger, dimmer)
+        
         local glow = Instance.new("ImageLabel")
         glow.Size = UDim2.new(0, size + 8, 0, size + 8)
         glow.Position = UDim2.new(0.5, 0, 0, 0)
@@ -1457,7 +1456,7 @@ local function createAirHubStyleGUI()
         glow.ImageTransparency = 0.6
         glow.Parent = container
         
-        -- Main arrow
+      
         local arrow = Instance.new("ImageLabel")
         arrow.Size = UDim2.new(0, size, 0, size)
         arrow.Position = UDim2.new(0.5, 0, 0, 4)
@@ -1469,7 +1468,6 @@ local function createAirHubStyleGUI()
         arrow.ImageColor3 = color
         arrow.Parent = container
         
-        -- Distance label below arrow
         local distLabel = Instance.new("TextLabel")
         distLabel.Size = UDim2.new(1, 0, 0, 12)
         distLabel.Position = UDim2.new(0, 0, 1, -12)
@@ -1486,7 +1484,7 @@ local function createAirHubStyleGUI()
     end
     
     local function updateOffscreenArrows()
-        -- Clear old arrows
+       
         for userId, arrowData in pairs(offscreenArrows) do
             if arrowData and arrowData.container then arrowData.container:Destroy() end
         end
@@ -1513,36 +1511,34 @@ local function createAirHubStyleGUI()
                     local targetHRP = targetChar:FindFirstChild("HumanoidRootPart")
                     if targetHRP then
                         local distance = (myHRP.Position - targetHRP.Position).Magnitude
-                        
-                        -- Only show arrows within max distance
+                     
                         if distance <= (Settings.ESP.ArrowDistance or 500) then
                             local screenPos, onScreen = camera:WorldToViewportPoint(targetHRP.Position)
-                            
-                            -- Only show arrow if offscreen
+                                                    
                             if not onScreen or screenPos.Z < 0 then
                                 local espColor = getESPColor(distance)
                                 if Settings.ESP.RainbowColor then
                                     espColor = Color3.fromHSV(tick() % 5 / 5, 1, 1)
                                 end
                                 
-                                -- Calculate direction to target
+                                
                                 local direction = (targetHRP.Position - camera.CFrame.Position)
                                 local flatDirection = Vector3.new(direction.X, 0, direction.Z).Unit
                                 local cameraLook = Vector3.new(camera.CFrame.LookVector.X, 0, camera.CFrame.LookVector.Z).Unit
                                 local cameraRight = Vector3.new(camera.CFrame.RightVector.X, 0, camera.CFrame.RightVector.Z).Unit
                                 
-                                -- Get 2D angle
+                              
                                 local dotForward = flatDirection:Dot(cameraLook)
                                 local dotRight = flatDirection:Dot(cameraRight)
                                 local angle = math.atan2(dotRight, dotForward)
                                 
-                                -- Calculate arrow position on screen edge with elliptical clamping
+                               
                                 local radiusX = screenSize.X / 2 - padding
                                 local radiusY = screenSize.Y / 2 - padding
                                 local arrowX = screenCenter.X + math.sin(angle) * radiusX
                                 local arrowY = screenCenter.Y - math.cos(angle) * radiusY
                                 
-                                -- Clamp to screen bounds
+                               
                                 arrowX = math.clamp(arrowX, padding, screenSize.X - padding)
                                 arrowY = math.clamp(arrowY, padding, screenSize.Y - padding)
                                 
@@ -1563,7 +1559,7 @@ local function createAirHubStyleGUI()
         end
     end
     
-    -- ESP Update Loop
+
     local espUpdateConn = RunService.RenderStepped:Connect(function()
         if isUnloading or _G.BinxixUnloaded then return end
         updateESP()
@@ -1574,7 +1570,7 @@ local function createAirHubStyleGUI()
     end)
     table.insert(allConnections, espUpdateConn)
     
-    -- Handle player leaving (cleanup ESP)
+    
     local playerRemovingConn = Players.PlayerRemoving:Connect(function(target)
         if espObjects[target.UserId] then
             removeESPForPlayer(target)
@@ -1582,7 +1578,7 @@ local function createAirHubStyleGUI()
     end)
     table.insert(allConnections, playerRemovingConn)
     
-    -- Main Frame (AirHub V2 style - compact, no rounded corners)
+    
     local mainFrame = Instance.new("Frame")
     mainFrame.Name = "MainFrame"
     mainFrame.Size = UDim2.new(0, 500, 0, 520)
@@ -1594,13 +1590,12 @@ local function createAirHubStyleGUI()
     mainFrame.Visible = true
     mainFrame.Parent = screenGui
     
-    -- Register mainFrame for theme updates
     table.insert(themeUpdateCallbacks, function()
         mainFrame.BackgroundColor3 = Theme.BackgroundDark
         mainFrame.BorderColor3 = Theme.Border
     end)
     
-    -- Title Bar
+
     local titleBar = Instance.new("Frame")
     titleBar.Name = "TitleBar"
     titleBar.Size = UDim2.new(1, 0, 0, 22)
@@ -1613,7 +1608,7 @@ local function createAirHubStyleGUI()
         titleBar.BackgroundColor3 = Theme.BackgroundDark
     end)
     
-    -- Custom drag system (replaces deprecated .Draggable)
+   
     local dragging = false
     local dragStart = nil
     local startPos = nil
@@ -1640,7 +1635,6 @@ local function createAirHubStyleGUI()
     end)
     table.insert(allConnections, dragConn)
     
-    -- Title Text
     local titleText = Instance.new("TextLabel")
     titleText.Size = UDim2.new(0, 200, 1, 0)
     titleText.Position = UDim2.new(0, 6, 0, 0)
@@ -1652,7 +1646,7 @@ local function createAirHubStyleGUI()
     titleText.TextXAlignment = Enum.TextXAlignment.Left
     titleText.Parent = titleBar
     
-    -- Close Button (X)
+    
     local closeBtn = Instance.new("TextButton")
     closeBtn.Size = UDim2.new(0, 22, 0, 22)
     closeBtn.Position = UDim2.new(1, -22, 0, 0)
@@ -1676,7 +1670,7 @@ local function createAirHubStyleGUI()
         mainFrame.Visible = false
     end)
     
-    -- Title underline
+   
     local titleLine = Instance.new("Frame")
     titleLine.Size = UDim2.new(1, 0, 0, 1)
     titleLine.Position = UDim2.new(0, 0, 1, -1)
@@ -1684,7 +1678,7 @@ local function createAirHubStyleGUI()
     titleLine.BorderSizePixel = 0
     titleLine.Parent = titleBar
     
-    -- Tab Container
+   
     local tabContainer = Instance.new("Frame")
     tabContainer.Name = "TabContainer"
     tabContainer.Size = UDim2.new(1, 0, 0, 24)
@@ -1693,7 +1687,6 @@ local function createAirHubStyleGUI()
     tabContainer.BorderSizePixel = 0
     tabContainer.Parent = mainFrame
     
-    -- Tab underline
     local tabLine = Instance.new("Frame")
     tabLine.Size = UDim2.new(1, 0, 0, 1)
     tabLine.Position = UDim2.new(0, 0, 1, -1)
@@ -1701,7 +1694,7 @@ local function createAirHubStyleGUI()
     tabLine.BorderSizePixel = 0
     tabLine.Parent = tabContainer
     
-    -- Content Area
+   
     local contentArea = Instance.new("Frame")
     contentArea.Name = "ContentArea"
     contentArea.Size = UDim2.new(1, -8, 1, -54)
@@ -1710,13 +1703,13 @@ local function createAirHubStyleGUI()
     contentArea.BorderSizePixel = 0
     contentArea.Parent = mainFrame
     
-    -- Tab system
+ 
     local tabs = {"General", "Aimbot", "ESP", "Crosshair", "Players", "Report", "Settings"}
     local tabButtons = {}
     local tabPages = {}
     local activeTab = "General"
     
-    -- Tab indicator (the underline that shows active tab)
+   
     local tabIndicator = Instance.new("Frame")
     tabIndicator.Name = "TabIndicator"
     tabIndicator.Size = UDim2.new(0, 54, 0, 2)
@@ -1726,7 +1719,7 @@ local function createAirHubStyleGUI()
     tabIndicator.ZIndex = 2
     tabIndicator.Parent = tabContainer
     
-    -- Create tab buttons
+   
     local tabWidth = 54
     for i, tabName in ipairs(tabs) do
         local tabBtn = Instance.new("TextButton")
@@ -1741,12 +1734,8 @@ local function createAirHubStyleGUI()
         tabBtn.Parent = tabContainer
         tabButtons[tabName] = tabBtn
     end
+
     
-    -- ========================================
-    -- UI COMPONENT CREATORS (AirHub V2 Style)
-    -- ========================================
-    
-    -- Create Section Header
     local function createSectionHeader(parent, text, posX, posY)
         local header = Instance.new("TextLabel")
         header.Size = UDim2.new(0, 200, 0, 16)
@@ -1761,7 +1750,7 @@ local function createAirHubStyleGUI()
         return header
     end
     
-    -- Create Checkbox (AirHub V2 style - simple square)
+
     local function createCheckbox(parent, text, posX, posY, default, callback)
         local container = Instance.new("Frame")
         container.Size = UDim2.new(0, 200, 0, 16)
@@ -1769,7 +1758,7 @@ local function createAirHubStyleGUI()
         container.BackgroundTransparency = 1
         container.Parent = parent
         
-        -- Checkbox box
+   
         local checkbox = Instance.new("Frame")
         checkbox.Size = UDim2.new(0, 12, 0, 12)
         checkbox.Position = UDim2.new(0, 0, 0, 2)
@@ -1778,7 +1767,6 @@ local function createAirHubStyleGUI()
         checkbox.BorderColor3 = Theme.BorderLight
         checkbox.Parent = container
         
-        -- Label
         local label = Instance.new("TextLabel")
         label.Size = UDim2.new(1, -18, 1, 0)
         label.Position = UDim2.new(0, 18, 0, 0)
@@ -1792,7 +1780,7 @@ local function createAirHubStyleGUI()
         
         local isEnabled = default
         
-        -- Click handler
+       
         local btn = Instance.new("TextButton")
         btn.Size = UDim2.new(1, 0, 1, 0)
         btn.BackgroundTransparency = 1
@@ -1814,9 +1802,8 @@ local function createAirHubStyleGUI()
             end,
             getValue = function() return isEnabled end
         }
-    end
-    
-    -- Create Slider (AirHub V2 style - pink bar with value)
+    end 
+   
     local function createSlider(parent, text, posX, posY, min, max, default, callback)
         local container = Instance.new("Frame")
         container.Size = UDim2.new(0, 200, 0, 30)
@@ -1824,7 +1811,6 @@ local function createAirHubStyleGUI()
         container.BackgroundTransparency = 1
         container.Parent = parent
         
-        -- Label
         local label = Instance.new("TextLabel")
         label.Size = UDim2.new(0, 120, 0, 14)
         label.BackgroundTransparency = 1
@@ -1834,8 +1820,7 @@ local function createAirHubStyleGUI()
         label.Font = Enum.Font.SourceSans
         label.TextXAlignment = Enum.TextXAlignment.Left
         label.Parent = container
-        
-        -- Value display
+             
         local valueLabel = Instance.new("TextLabel")
         valueLabel.Size = UDim2.new(0, 50, 0, 14)
         valueLabel.Position = UDim2.new(1, -50, 0, 0)
@@ -1847,7 +1832,6 @@ local function createAirHubStyleGUI()
         valueLabel.TextXAlignment = Enum.TextXAlignment.Right
         valueLabel.Parent = container
         
-        -- Slider background
         local sliderBg = Instance.new("Frame")
         sliderBg.Size = UDim2.new(1, 0, 0, 4)
         sliderBg.Position = UDim2.new(0, 0, 0, 18)
@@ -1855,7 +1839,7 @@ local function createAirHubStyleGUI()
         sliderBg.BorderSizePixel = 0
         sliderBg.Parent = container
         
-        -- Slider fill
+  
         local sliderFill = Instance.new("Frame")
         sliderFill.Size = UDim2.new((default - min) / (max - min), 0, 1, 0)
         sliderFill.BackgroundColor3 = Theme.SliderFill
@@ -1901,7 +1885,6 @@ local function createAirHubStyleGUI()
         return container
     end
     
-    -- Create Dropdown (AirHub V2 style)
     local function createDropdown(parent, text, posX, posY, options, default, callback)
         local container = Instance.new("Frame")
         container.Size = UDim2.new(0, 200, 0, 34)
@@ -1909,7 +1892,6 @@ local function createAirHubStyleGUI()
         container.BackgroundTransparency = 1
         container.Parent = parent
         
-        -- Label
         local label = Instance.new("TextLabel")
         label.Size = UDim2.new(0, 90, 0, 14)
         label.BackgroundTransparency = 1
@@ -1920,7 +1902,6 @@ local function createAirHubStyleGUI()
         label.TextXAlignment = Enum.TextXAlignment.Left
         label.Parent = container
         
-        -- Dropdown button
         local dropBtn = Instance.new("TextButton")
         dropBtn.Size = UDim2.new(0, 100, 0, 18)
         dropBtn.Position = UDim2.new(1, -100, 0, 14)
@@ -1933,7 +1914,6 @@ local function createAirHubStyleGUI()
         dropBtn.Font = Enum.Font.SourceSans
         dropBtn.Parent = container
         
-        -- Arrow
         local arrow = Instance.new("TextLabel")
         arrow.Size = UDim2.new(0, 14, 1, 0)
         arrow.Position = UDim2.new(1, -14, 0, 0)
@@ -1947,7 +1927,6 @@ local function createAirHubStyleGUI()
         local currentSelection = default
         local isOpen = false
         
-        -- Options frame (created on click)
         local optionsFrame = Instance.new("Frame")
         optionsFrame.Size = UDim2.new(0, 100, 0, #options * 18)
         optionsFrame.BackgroundColor3 = Theme.Background
@@ -1998,7 +1977,6 @@ local function createAirHubStyleGUI()
         return container
     end
     
-    -- Create Color Picker (simplified)
     local function createColorDisplay(parent, text, posX, posY, defaultColor)
         local container = Instance.new("Frame")
         container.Size = UDim2.new(0, 200, 0, 18)
@@ -2030,7 +2008,6 @@ local function createAirHubStyleGUI()
   
     local autoTPTarget = nil
     
-    -- Check if a target is protected (forcefield, safe zone, spawn, godmode)
     local function isTargetProtected(target)
         local targetChar = target.Character
         if not targetChar then return true end
@@ -2038,24 +2015,20 @@ local function createAirHubStyleGUI()
         local targetHumanoid = targetChar:FindFirstChild("Humanoid")
         if not targetHumanoid then return true end
         
-        -- Check for ForceField instance on character
         for _, child in ipairs(targetChar:GetChildren()) do
             if child:IsA("ForceField") then
                 return true
             end
         end
         
-        -- Check if humanoid has forcefield flag (some games use this)
         if targetHumanoid:FindFirstChild("ForceField") then
             return true
         end
         
-        -- Check for godmode — health stuck at max or extremely high
         if targetHumanoid.MaxHealth >= 999999 then
             return true
         end
         
-        -- Check for spawn protection / invincibility attributes
         local invincibleAttrs = {"Invincible", "SpawnProtection", "Protected", "SafeZone", "Invulnerable", "GodMode", "Shielded"}
         for _, attrName in ipairs(invincibleAttrs) do
             local val = nil
@@ -2065,7 +2038,6 @@ local function createAirHubStyleGUI()
             if val == true then return true end
         end
         
-        -- Check for shield/barrier parts or values on character
         for _, child in ipairs(targetChar:GetChildren()) do
             local lowerName = child.Name:lower()
             if lowerName:find("shield") or lowerName:find("barrier") or lowerName:find("safezone") or lowerName:find("forcefield") or lowerName:find("spawn_protect") then
@@ -2079,15 +2051,12 @@ local function createAirHubStyleGUI()
             end
         end
         
-        -- Check if target HRP is inside a known safe zone part in workspace
         local targetHRP = targetChar:FindFirstChild("HumanoidRootPart")
         if targetHRP then
-            -- Look for common safe zone parts in workspace
             local safeZoneNames = {"SafeZone", "SpawnZone", "Lobby", "SafeArea", "SpawnArea", "Safe_Zone", "Spawn_Zone"}
             for _, zoneName in ipairs(safeZoneNames) do
                 local zone = Workspace:FindFirstChild(zoneName, true)
                 if zone and zone:IsA("BasePart") then
-                    -- Simple AABB check — is the target inside this part?
                     local zonePos = zone.Position
                     local zoneSize = zone.Size / 2
                     local tPos = targetHRP.Position
@@ -2111,7 +2080,6 @@ local function createAirHubStyleGUI()
         
         local targetName = Settings.Misc.AutoTPTargetName
         
-        -- If a specific player is selected, try to find them
         if targetName and targetName ~= "Nearest Enemy" then
             for _, target in ipairs(Players:GetPlayers()) do
                 if target ~= player and target.DisplayName == targetName or target.Name == targetName then
@@ -2127,11 +2095,9 @@ local function createAirHubStyleGUI()
                     end
                 end
             end
-            -- Selected player not found or dead, return nil (wait for them)
             return nil
         end
         
-        -- Default: nearest enemy
         local nearest, nearestDist = nil, math.huge
         
         for _, target in ipairs(Players:GetPlayers()) do
@@ -2141,7 +2107,6 @@ local function createAirHubStyleGUI()
                     local targetHRP = targetChar:FindFirstChild("HumanoidRootPart")
                     local targetHumanoid = targetChar:FindFirstChild("Humanoid")
                     if targetHRP and targetHumanoid and targetHumanoid.Health > 0 then
-                        -- Skip protected targets
                         if not isTargetProtected(target) then
                             local dist = (myHRP.Position - targetHRP.Position).Magnitude
                             if dist < nearestDist then
@@ -2165,7 +2130,6 @@ local function createAirHubStyleGUI()
     local function startAntiDeath()
     if antiDeathConn then return end
     
-    -- ForceField application loop
     antiDeathConn = RunService.Heartbeat:Connect(function()
         if isUnloading or _G.BinxixUnloaded then return end
         if not Settings.Misc.AutoTPLoop or not Settings.Misc.AutoTPAntiDeath then return end
@@ -2173,13 +2137,11 @@ local function createAirHubStyleGUI()
         local char = player.Character
         if not char then return end
         
-        -- Force max health
         local humanoid = char:FindFirstChild("Humanoid")
         if humanoid and humanoid.Health > 0 then
             humanoid.Health = humanoid.MaxHealth
         end
         
-        -- Force apply ForceField - check if it exists and create if missing
         local hasForceField = false
         for _, child in ipairs(char:GetChildren()) do
             if child:IsA("ForceField") then
@@ -2199,7 +2161,6 @@ local function createAirHubStyleGUI()
     end)
     table.insert(allConnections, antiDeathConn)
     
-    -- Auto-respawn + TP back if we somehow die
     local function hookDeath()
         local char = player.Character
         if not char then return end
@@ -2213,14 +2174,11 @@ local function createAirHubStyleGUI()
         antiDeathDiedConn = humanoid.Died:Connect(function()
             if not Settings.Misc.AutoTPLoop or not Settings.Misc.AutoTPAntiDeath then return end
             
-            -- Save last position
             local savedPos = lastSafeTPPosition
             
-            -- Wait for respawn
             task.wait(0.1)
             player:LoadCharacter()
             
-            -- Wait for new character
             local newChar = player.CharacterAdded:Wait()
             task.wait(0.5)
             
@@ -2228,7 +2186,6 @@ local function createAirHubStyleGUI()
             local newHumanoid = newChar:WaitForChild("Humanoid", 5)
             
             if newHRP and savedPos and Settings.Misc.AutoTPLoop then
-                -- Immediately apply ForceField on respawn
                 pcall(function()
                     local ff = Instance.new("ForceField")
                     ff.Name = "BinxixAntiDeath"
@@ -2236,17 +2193,14 @@ local function createAirHubStyleGUI()
                     ff.Parent = newChar
                 end)
                 
-                -- Set max health
                 if newHumanoid then
                     newHumanoid.Health = newHumanoid.MaxHealth
                 end
                 
-                -- TP back to saved position
                 task.wait(0.1)
                 newHRP.CFrame = savedPos
             end
             
-            -- Re-hook death on new character
             hookDeath()
         end)
         table.insert(allConnections, antiDeathDiedConn)
@@ -2254,11 +2208,9 @@ local function createAirHubStyleGUI()
     
     hookDeath()
     
-    -- Also hook CharacterAdded to apply ForceField on any new character spawn
     local charAddedConn = player.CharacterAdded:Connect(function(newChar)
         task.wait(0.5)
         if Settings.Misc.AutoTPLoop and Settings.Misc.AutoTPAntiDeath then
-            -- Force apply ForceField immediately
             pcall(function()
                 local ff = Instance.new("ForceField")
                 ff.Name = "BinxixAntiDeath"
@@ -2266,7 +2218,6 @@ local function createAirHubStyleGUI()
                 ff.Parent = newChar
             end)
             
-            -- Set max health
             local humanoid = newChar:WaitForChild("Humanoid", 5)
             if humanoid then
                 humanoid.Health = humanoid.MaxHealth
@@ -2287,7 +2238,6 @@ local function stopAntiDeath()
         pcall(function() antiDeathDiedConn:Disconnect() end)
         antiDeathDiedConn = nil
     end
-    -- Remove all BinxixAntiDeath ForceFields
     pcall(function()
         local char = player.Character
         if char then
@@ -2300,9 +2250,9 @@ local function stopAntiDeath()
     end)
 end
     local function startAutoTPLoop()
-        if autoTPLoopConn then return end -- Already running
+        if autoTPLoopConn then return end 
         
-        -- Start anti-death if enabled
+        
         if Settings.Misc.AutoTPAntiDeath then
             startAntiDeath()
         end
@@ -2313,7 +2263,7 @@ end
                 local myHRP = myChar and myChar:FindFirstChild("HumanoidRootPart")
                 
                 if myHRP then
-                    -- Find next alive unprotected target
+                    
                     autoTPTarget = getNextTPTarget()
                     
                     if autoTPTarget then
@@ -2323,22 +2273,17 @@ end
                             local targetHumanoid = targetChar:FindFirstChild("Humanoid")
                             
                             if targetHRP and targetHumanoid and targetHumanoid.Health > 0 then
-                                -- Void protection: check if target is in a valid position
                                 local targetPos = targetHRP.Position
                                 local MIN_Y = -50
                                 local MAX_Y = 2000
                                 local skipTarget = false
                                 
-                                -- Save our current safe position before TPing
                                 local safePosition = myHRP.CFrame
                                 
-                                -- Check target Y is sane
                                 if targetPos.Y < MIN_Y or targetPos.Y > MAX_Y then
-                                    -- (notification suppressed)
                                     skipTarget = true
                                 end
                                 
-                                -- Raycast down from target to check there's ground
                                 local rayParams = RaycastParams.new()
                                 rayParams.FilterType = Enum.RaycastFilterType.Exclude
                                 rayParams.FilterDescendantsInstances = {myChar, autoTPTarget.Character}
@@ -2347,9 +2292,8 @@ end
                                     local groundCheck = Workspace:Raycast(targetPos, Vector3.new(0, -200, 0), rayParams)
                                     
                                     if not groundCheck and targetPos.Y > 20 then
-                                        -- (notification suppressed)
                                         local waitedForGround = false
-                                        for i = 1, 20 do -- Wait up to 2 seconds
+                                        for i = 1, 20 do 
                                             task.wait(0.1)
                                             if not Settings.Misc.AutoTPLoop then break end
                                             local tChar = autoTPTarget and autoTPTarget.Character
@@ -2372,46 +2316,38 @@ end
                                 end
                                 
                                 if not skipTarget then
-                                    -- TP behind the target (2 studs behind, facing them)
                                     local targetCF = targetHRP.CFrame
                                     local lookAtTarget = CFrame.lookAt(targetCF.Position + targetCF.LookVector * 2, targetCF.Position)
                                     myHRP.CFrame = lookAtTarget
                                     lastSafeTPPosition = lookAtTarget
                                     
-                                    -- Lock camera to face target
                                     local camera = Workspace.CurrentCamera
                                     if camera then
                                         camera.CFrame = CFrame.lookAt(myHRP.Position + Vector3.new(0, 2, 0), targetHRP.Position)
                                     end
                                     
-                                    -- Quick void check after TP
                                     task.wait(0.05)
                                     myChar = player.Character
                                     myHRP = myChar and myChar:FindFirstChild("HumanoidRootPart")
                                     if myHRP and myHRP.Position.Y < MIN_Y then
                                         myHRP.CFrame = safePosition
-                                        -- (notification suppressed)
                                         skipTarget = true
                                     end
                                 end
                                 
                                 if not skipTarget then
-                                    -- Track target — fast loop
                                     while Settings.Misc.AutoTPLoop and not isUnloading and not _G.BinxixUnloaded do
-                                        task.wait(0.05) -- 50ms tick for fast response
+                                        task.wait(0.05) 
                                         
                                         myChar = player.Character
                                         myHRP = myChar and myChar:FindFirstChild("HumanoidRootPart")
                                         if not myHRP then break end
                                         
-                                        -- If WE fell into void, escape back
                                         if myHRP.Position.Y < MIN_Y then
                                             myHRP.CFrame = safePosition
-                                            -- (notification suppressed)
                                             break
                                         end
                                         
-                                        -- Update safe position while on solid ground
                                         local selfGround = Workspace:Raycast(myHRP.Position, Vector3.new(0, -10, 0), rayParams)
                                         if selfGround then
                                             safePosition = myHRP.CFrame
@@ -2425,16 +2361,13 @@ end
                                         if not targetHRP then break end
                                         
                                         if targetHRP.Position.Y < MIN_Y then
-                                            -- (notification suppressed)
                                             break
                                         end
                                         
                                         if isTargetProtected(autoTPTarget) then
-                                            -- (notification suppressed)
                                             break
                                         end
                                         
-                                        -- Stay close — TP if drifted more than 5 studs
                                         local dist = (myHRP.Position - targetHRP.Position).Magnitude
                                         if dist > 5 then
                                             if targetHRP.Position.Y > MIN_Y then
@@ -2444,7 +2377,6 @@ end
                                             end
                                         end
                                         
-                                        -- Keep camera locked on target
                                         local cam = Workspace.CurrentCamera
                                         if cam and targetHRP then
                                             cam.CFrame = CFrame.lookAt(myHRP.Position + Vector3.new(0, 1.5, 0), targetHRP.Position + Vector3.new(0, 1, 0))
@@ -2456,7 +2388,6 @@ end
                     end
                 end
                 
-                -- Delay before finding next target
                 local delay = Settings.Misc.AutoTPLoopDelay or 0.5
                 task.wait(delay)
             end
@@ -2477,7 +2408,6 @@ end
         end
     end
     
-    -- GENERAL TAB
     local generalPage = Instance.new("ScrollingFrame")
     generalPage.Name = "GeneralPage"
     generalPage.Size = UDim2.new(1, 0, 1, 0)
@@ -2491,7 +2421,6 @@ end
     generalPage.Parent = contentArea
     tabPages["General"] = generalPage
     
-    -- Left column
     createSectionHeader(generalPage, "Movement", 0, 0)
     createCheckbox(generalPage, "Speed Boost", 0, 20, false, function(e)
         Settings.Movement.SpeedEnabled = e
@@ -2503,7 +2432,6 @@ end
             end
         end
         if not e then
-            -- Clean up velocity if it exists
             local char = player.Character
             if char then
                 local hrp = char:FindFirstChild("HumanoidRootPart")
@@ -2529,7 +2457,6 @@ end
         end
     end)
     createDropdown(generalPage, "Speed Method", 0, 75, {"WalkSpeed", "CFrame", "Velocity"}, "WalkSpeed", function(v)
-        -- Reset old method before switching
         local char = player.Character
         if char then
             local h = char:FindFirstChild("Humanoid")
@@ -2543,7 +2470,6 @@ end
             end
         end
         Settings.Movement.SpeedMethod = v
-        -- Apply new method if speed is enabled
         if Settings.Movement.SpeedEnabled and v == "WalkSpeed" then
             if char then
                 local h = char:FindFirstChild("Humanoid")
@@ -2576,7 +2502,6 @@ end
         Settings.Movement.BunnyHopSpeed = v
     end)
     
-    -- Right column
     createSectionHeader(generalPage, "Visuals", 240, 0)
     createCheckbox(generalPage, "Fullbright", 240, 20, false, function(e)
         Settings.Visuals.Fullbright = e
@@ -2635,7 +2560,7 @@ end
         Settings.Movement.FlySpeed = v
     end)
     
-    -- Misc section
+    
     createSectionHeader(generalPage, "Misc", 240, 225)
     createCheckbox(generalPage, "Anti-AFK", 240, 245, false, function(e)
         Settings.Misc.AntiAFK = e
@@ -2644,9 +2569,6 @@ end
         Settings.Misc.AutoRejoin = e
     end)
     
-    -- ========================================
-    -- CHAT SPAMMER
-    -- ========================================
     createSectionHeader(generalPage, "Chat Spammer", 240, 430)
     
     createCheckbox(generalPage, "Chat Spammer", 240, 450, false, function(e)
@@ -2658,7 +2580,6 @@ end
         Settings.Misc.ChatSpamDelay = v
     end)
     
-    -- Chat spam message input
     local spamMsgLabel = Instance.new("TextLabel")
     spamMsgLabel.Size = UDim2.new(0, 200, 0, 14)
     spamMsgLabel.Position = UDim2.new(0, 240, 0, 505)
@@ -2692,12 +2613,9 @@ end
         end
     end)
     
-    -- ========================================
-    -- GUN MODS SECTION (replaces Kill Aura / Trigger Bot)
-    -- ========================================
+   
     createSectionHeader(generalPage, "Gun Mods", 0, 295)
     
-    -- WIP / Lag warning
     local gunModWarnLabel = Instance.new("TextLabel")
     gunModWarnLabel.Size = UDim2.new(0, 210, 0, 14)
     gunModWarnLabel.Position = UDim2.new(0, 0, 0, 313)
@@ -2735,10 +2653,8 @@ end
         sendNotification("Gun Mods", e and "No Recoil enabled" or "No Recoil disabled", 2)
     end)
     
-    -- Increase canvas size to fit content
     generalPage.CanvasSize = UDim2.new(0, 0, 0, 610)
     
-    -- Auto TP Loop with warning + keybind
     local autoTPToggleKey = Enum.KeyCode.T
     local waitingForTPKey = false
     
@@ -2748,7 +2664,6 @@ end
     autoTPContainer.BackgroundTransparency = 1
     autoTPContainer.Parent = generalPage
     
-    -- Checkbox box
     local autoTPCheckbox = Instance.new("Frame")
     autoTPCheckbox.Size = UDim2.new(0, 12, 0, 12)
     autoTPCheckbox.Position = UDim2.new(0, 0, 0, 2)
@@ -2757,7 +2672,6 @@ end
     autoTPCheckbox.BorderColor3 = Theme.BorderLight
     autoTPCheckbox.Parent = autoTPContainer
     
-    -- Label
     local autoTPLabel = Instance.new("TextLabel")
     autoTPLabel.Size = UDim2.new(0, 75, 1, 0)
     autoTPLabel.Position = UDim2.new(0, 18, 0, 0)
@@ -3374,9 +3288,7 @@ end
         Settings.Crosshair.Style = v
     end)
     
-    -- ========================================
-    -- PLAYERS TAB
-    -- ========================================
+
     local playersPage = Instance.new("Frame")
     playersPage.Name = "PlayersPage"
     playersPage.Size = UDim2.new(1, 0, 1, 0)
