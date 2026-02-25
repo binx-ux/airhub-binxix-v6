@@ -1,89 +1,148 @@
-# Binxix Hub V6
+<div align="center">
 
-> AirHub V2 Style Edition
+```
+██████╗ ██╗███╗   ██╗██╗  ██╗██╗██╗  ██╗    ██╗  ██╗██╗   ██╗██████╗     ██╗   ██╗ ██████╗ 
+██╔══██╗██║████╗  ██║╚██╗██╔╝██║╚██╗██╔╝    ██║  ██║██║   ██║██╔══██╗    ██║   ██║██╔════╝ 
+██████╔╝██║██╔██╗ ██║ ╚███╔╝ ██║ ╚███╔╝     ███████║██║   ██║██████╔╝    ██║   ██║███████╗ 
+██╔══██╗██║██║╚██╗██║ ██╔██╗ ██║ ██╔██╗     ██╔══██║██║   ██║██╔══██╗    ╚██╗ ██╔╝██╔═══██╗
+██████╔╝██║██║ ╚████║██╔╝ ██╗██║██╔╝ ██╗    ██║  ██║╚██████╔╝██████╔╝     ╚████╔╝ ╚██████╔╝
+╚═════╝ ╚═╝╚═╝  ╚═══╝╚═╝  ╚═╝╚═╝╚═╝  ╚═╝    ╚═╝  ╚═╝ ╚═════╝ ╚═════╝       ╚═══╝   ╚═════╝ 
+```
+
+**AirHub V2 Style Edition**
+
+![Version](https://img.shields.io/badge/version-6-blueviolet?style=for-the-badge)
+![Platform](https://img.shields.io/badge/platform-Roblox-00b4d8?style=for-the-badge)
+![Language](https://img.shields.io/badge/language-Lua-purple?style=for-the-badge)
+![Status](https://img.shields.io/badge/status-active-brightgreen?style=for-the-badge)
+
+</div>
+
+---
 
 ## Loadstring
-```
+
+```lua
 loadstring(game:HttpGet("https://raw.githubusercontent.com/binx-ux/airhub-binxix-v6/main/script/aimbot"))()
 ```
+
+---
 
 ## Features
 
 ### ESP
-- Box ESP (Highlight)
-- Name Tags
-- Health Bars
-- Distance Tags
-- Tracers (Bottom/Center/Mouse)
-- Skeleton ESP (R15 + R6)
-- Offscreen Arrows
-- Chams / Wallhack Glow
-- Rainbow Color Mode
-- Team / Enemy / All Filters
+
+| Feature | Details |
+|---|---|
+| Box ESP | Highlight mode |
+| Name Tags | |
+| Health Bars | |
+| Distance Tags | |
+| Tracers | Bottom / Center / Mouse |
+| Skeleton ESP | R15 + R6 |
+| Offscreen Arrows | |
+| Chams / Wallhack Glow | |
+| Rainbow Color Mode | |
+| Filters | Team / Enemy / All |
+
+---
 
 ### Aimbot
-- Smooth Aim Lock
-- FOV Circle
-- Hold / Toggle Modes
-- Target Prediction
-- Line of Sight Check
-- Sticky Aim
-- Custom Lock Part
-- Target Lock Highlight
+
+| Feature | Details |
+|---|---|
+| Smooth Aim Lock | |
+| FOV Circle | |
+| Hold / Toggle Modes | |
+| Target Prediction | |
+| Line of Sight Check | |
+| Sticky Aim | |
+| Custom Lock Part | |
+| Target Lock Highlight | |
+
+---
 
 ### Gun Mods
-- Fast Reload
-- Fast Fire Rate
-- Always Auto
-- No Spread
-- No Recoil
-- May cause lag (WIP)
+
+| Feature | Details |
+|---|---|
+| Fast Reload | |
+| Fast Fire Rate | |
+| Always Auto | |
+| No Spread | |
+| No Recoil | May cause lag (WIP) |
+
+---
 
 ### Movement
-- Speed Boost (3 Methods)
-- High Jump
-- Bunny Hop
-- Fly (Toggle with F)
-- Custom FOV
+
+| Feature | Details |
+|---|---|
+| Speed Boost | 3 Methods |
+| High Jump | |
+| Bunny Hop | |
+| Fly | Toggle with F |
+| Custom FOV | |
+
+---
 
 ### Combat
-- Kill Aura (Click / Touch)
-- Trigger Bot
-- Auto TP Loop
-- Anti-Death (TP Mode)
-- Custom Crosshair
+
+| Feature | Details |
+|---|---|
+| Kill Aura | Click / Touch |
+| Trigger Bot | |
+| Auto TP Loop | |
+| Anti-Death | TP Mode |
+| Custom Crosshair | |
+
+---
 
 ### Misc
-- Anti-AFK
-- Auto-Rejoin
-- Chat Spy (All Channels)
-- Chat Spammer
-- Streamer Mode
-- Profile Save/Load System
-- FPS Counter / Velocity
-- Fullbright / No Fog
+
+| Feature | Details |
+|---|---|
+| Anti-AFK | |
+| Auto-Rejoin | |
+| Chat Spy | All Channels — logs to F9 console |
+| Chat Spammer | Custom message + delay |
+| Streamer Mode | Hides names, chat, aimbot indicators |
+| Profile Save / Load | Save and restore your settings |
+| FPS Counter / Velocity | |
+| Fullbright / No Fog | |
+
+---
 
 ## Game Support
 
-Works universally on all Roblox games with ESP/aimbot. Special support for:
+Works universally across all Roblox games. Extended support available for:
 
-- **Murder Mystery 2** — option to load Vertex or Binxix Hub
-- **The Strongest Battlegrounds** — option to load Phantasm or Binxix Hub
+> **Murder Mystery 2** — choose to load Vertex or Binxix Hub on inject
+>
+> **The Strongest Battlegrounds** — choose to load Phantasm or Binxix Hub on inject
+
+---
 
 ## Controls
 
-- `RightControl` — toggle GUI (rebindable)
-- `T` — toggle Auto TP (rebindable)
-- `F` — toggle Fly (when enabled)
+| Keybind | Action |
+|---|---|
+| `RightControl` | Toggle GUI (rebindable) |
+| `T` | Toggle Auto TP (rebindable) |
+| `F` | Toggle Fly |
+
+---
 
 ## Auto Updates
 
-Script checks for updates on load. If a new version is available, you will see a banner in the GUI.
+The script checks for updates on every load. If a newer version is available, a notification banner will appear inside the GUI automatically.
+
+---
 
 ## Discord
 
-[discord.gg/S4nPV2Rx7F](https://discord.gg/S4nPV2Rx7F)
-Script checks for updates on load. If a new version is available, you'll see a banner in the GUI.
+<div align="center">
 
-## Discord
-[discord.gg/S4nPV2Rx7F](https://discord.gg/S4nPV2Rx7F)
+**[Join the Discord — discord.gg/S4nPV2Rx7F](https://discord.gg/S4nPV2Rx7F)**
+
+</div>
