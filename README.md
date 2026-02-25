@@ -91,9 +91,9 @@ loadstring(game:HttpGet("https://raw.githubusercontent.com/binx-ux/airhub-binxix
 | Feature | Details |
 |---|---|
 | Kill Aura | Click / Touch |
-| Trigger Bot | |
+| Trigger Bot | WIP|
 | Auto TP Loop | |
-| Anti-Death | TP Mode |
+| Anti-Death | WIP |
 | Custom Crosshair | |
 
 ---
