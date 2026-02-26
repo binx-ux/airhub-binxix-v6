@@ -1,5 +1,5 @@
 
-local SCRIPT_VERSION = 347 
+local SCRIPT_VERSION = 349 
 local VERSION_URL = "https://raw.githubusercontent.com/binx-ux/airhub-binxix-v6/main/VERSION"
 
 _G.BinxixUnloaded = false
