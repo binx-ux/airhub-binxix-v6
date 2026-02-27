@@ -15,7 +15,40 @@ local HttpService = game:GetService("HttpService")
 local player = Players.LocalPlayer
 
 local currentPlaceId = game.PlaceId
+local currentPlaceId = game.PlaceId
 
+
+do
+    local StarterGui = game:GetService("StarterGui")
+
+ 
+    if currentPlaceId == 83728249169833 then
+        pcall(function()
+            StarterGui:SetCore("SendNotification", {
+                Title = "Binxix Hub V6",
+                Text = "Quick-Shot is no longer supported.",
+                Duration = 8
+            })
+        end)
+        warn("[Binxix Hub V6] Quick-Shot is no longer supported. Please don't use this script here.")
+        _G.BinxixUnloaded = true
+        return
+    end
+
+  
+    if currentPlaceId == 95721658376580 then
+        pcall(function()
+            StarterGui:SetCore("SendNotification", {
+                Title = "Binxix Hub V6",
+                Text = "MTC: script is detected, please don't use it.",
+                Duration = 8
+            })
+        end)
+        warn("[Binxix Hub V6] MTC script is detected. Please don't use this script here.")
+        _G.BinxixUnloaded = true
+        return
+    end
+end
 
 local ThemePresets = {
     Purple = {
