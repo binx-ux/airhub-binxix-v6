@@ -1,5 +1,5 @@
 
-local SCRIPT_VERSION = 349 
+local SCRIPT_VERSION = 351 
 local VERSION_URL = "https://raw.githubusercontent.com/binx-ux/airhub-binxix-v6/main/VERSION"
 
 _G.BinxixUnloaded = false
@@ -22,31 +22,41 @@ do
     local StarterGui = game:GetService("StarterGui")
 
  
-    if currentPlaceId == 83728249169833 then
-        pcall(function()
-            StarterGui:SetCore("SendNotification", {
-                Title = "Binxix Hub V6",
-                Text = "Quick-Shot is no longer supported.",
-                Duration = 8
-            })
-        end)
-        warn("[Binxix Hub V6] Quick-Shot is no longer supported. Please don't use this script here.")
-        _G.BinxixUnloaded = true
-        return
-    end
+    local currentPlaceId = game.PlaceId
 
-  
-    if currentPlaceId == 95721658376580 then
-        pcall(function()
-            StarterGui:SetCore("SendNotification", {
-                Title = "Binxix Hub V6",
-                Text = "MTC: script is detected, please don't use it.",
-                Duration = 8
-            })
-        end)
-        warn("[Binxix Hub V6] MTC script is detected. Please don't use this script here.")
+-- ===== BLOCKED GAMES (Quick-Shot & MTC) =====
+do
+    local StarterGui = game:GetService("StarterGui")
+
+    local blockedGames = {
+        [83728249169833] = "Quick-Shot",
+        [95721658376580] = "MTC",
+    }
+
+    local gameName = blockedGames[currentPlaceId]
+    if gameName then
+        if gameName == "Quick-Shot" then
+            pcall(function()
+                StarterGui:SetCore("SendNotification", {
+                    Title = "Binxix Hub V6",
+                    Text = "Quick-Shot is no longer supported.",
+                    Duration = 8
+                })
+            end)
+            warn("[Binxix Hub V6] Quick-Shot is no longer supported. Please don't use this script here.")
+        elseif gameName == "MTC" then
+            pcall(function()
+                StarterGui:SetCore("SendNotification", {
+                    Title = "Binxix Hub V6",
+                    Text = "MTC: script is detected, please don't use it.",
+                    Duration = 8
+                })
+            end)
+            warn("[Binxix Hub V6] MTC script is detected. Please don't use this script here.")
+        end
+
         _G.BinxixUnloaded = true
-        return
+        error("[Binxix Hub V6] Script disabled on " .. gameName) -- hard stop
     end
 end
 
