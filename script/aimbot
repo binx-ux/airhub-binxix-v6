@@ -1,1 +1,16 @@
+-- Binxix Hub Downtime Notification
+-- Run this script to display a downtime notification
 
+local function showNotification()
+    print("╔══════════════════════════════════════════════╗")
+    print("║           ⚠  BINXIX HUB NOTICE  ⚠           ║")
+    print("╠══════════════════════════════════════════════╣")
+    print("║                                              ║")
+    print("║   Binxix Hub is currently in downtime.      ║")
+    print("║   Sorry for the inconvenience!              ║")
+    print("║   Should be back up by 9PM.                 ║")
+    print("║                                              ║")
+    print("╚══════════════════════════════════════════════╝")
+end
+
+showNotification()
