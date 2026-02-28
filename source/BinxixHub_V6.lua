@@ -1,5 +1,5 @@
 
-local SCRIPT_VERSION = 351 
+local SCRIPT_VERSION = 352 
 local VERSION_URL = "https://raw.githubusercontent.com/binx-ux/airhub-binxix-v6/main/VERSION"
 
 _G.BinxixUnloaded = false
@@ -15,14 +15,6 @@ local HttpService = game:GetService("HttpService")
 local player = Players.LocalPlayer
 
 local currentPlaceId = game.PlaceId
-local currentPlaceId = game.PlaceId
-
-
-do
-    local StarterGui = game:GetService("StarterGui")
-
- 
-    local currentPlaceId = game.PlaceId
 
 -- ===== BLOCKED GAMES (Quick-Shot & MTC) =====
 do
@@ -119,7 +111,6 @@ for k, v in pairs(ThemePresets.Purple) do
     Theme[k] = v
 end
 
-
 local themeUpdateCallbacks = {}
 
 local function applyTheme(themeName)
@@ -135,7 +126,6 @@ local function applyTheme(themeName)
     end
 end
 
-
 local supportedGames = {
     [286090429] = {name = "Arsenal", espEnabled = true},
     [9157605735] = {name = "MiscGunTest-X", espEnabled = false},
@@ -149,7 +139,6 @@ local supportedGames = {
 
 local currentGameData = supportedGames[currentPlaceId] or {name = "Universal", espEnabled = true}
 local gameConfig = {espEnabled = currentGameData.espEnabled}
-
 
 if currentGameData.loadScript then
 
