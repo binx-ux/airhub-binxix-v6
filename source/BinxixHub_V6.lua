@@ -1,4 +1,4 @@
-local SCRIPT_VERSION = "003"
+local SCRIPT_VERSION = "004"
 local SCRIPT_VERSION_DISPLAY = "7."..SCRIPT_VERSION
 local VERSION_URL = "https://raw.githubusercontent.com/binx-ux/binxix-hub-v7/main/VERSION"
 local INTEGRITY_HASH = "binxix_v7_official"
