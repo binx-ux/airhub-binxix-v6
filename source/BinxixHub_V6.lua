@@ -1,4 +1,4 @@
-local SCRIPT_VERSION = "004"
+local SCRIPT_VERSION = "005"
 local SCRIPT_VERSION_DISPLAY = "7."..SCRIPT_VERSION
 local VERSION_URL = "https://raw.githubusercontent.com/binx-ux/binxix-hub-v7/main/VERSION"
 local INTEGRITY_HASH = "binxix_v7_official"
@@ -299,6 +299,7 @@ local supportedGames = {
     [142823291]       = {name="Murder Mystery 2",           espEnabled=false, loadScript="https://raw.smokingscripts.org/vertex.lua",scriptName="Vertex"},
     [10449761463]     = {name="The Strongest Battlegrounds",espEnabled=false, loadScript="https://raw.githubusercontent.com/ATrainz/Phantasm/refs/heads/main/Games/TSB.lua",scriptName="Phantasm"},
     [104715542330896] = {name="BlockSpin",                  espEnabled=true,  noMovement=true},
+    [17625359962]     = {name="RIVALS",                     espEnabled=false, loadScript="https://raw.githubusercontent.com/Vavadragonss/VavaAimbot/refs/heads/main/main.lua",scriptName="VavaAimbot"},
 }
 local currentGameData = supportedGames[currentPlaceId] or {name="Universal", espEnabled=true}
 local gameConfig = {espEnabled=currentGameData.espEnabled}
@@ -323,7 +324,6 @@ if currentGameData.loadScript then
     -- top accent bar
     local accentBar = UILib.newFrame(cf,{Size=UDim2.new(1,0,0,3),Position=UDim2.new(0,0,0,0),BackgroundColor3=Color3.fromRGB(180,80,255),BorderSizePixel=0,ZIndex=102})
     UILib.corner(accentBar,12)
-    -- square off the bottom corners of the accent bar so it looks flush
     UILib.newFrame(cf,{Size=UDim2.new(1,0,0,6),Position=UDim2.new(0,0,0,0),BackgroundColor3=Color3.fromRGB(16,14,22),BackgroundTransparency=1,BorderSizePixel=0,ZIndex=101})
 
     -- title + version
@@ -985,7 +985,6 @@ local function createGUI()
     local layout = Instance.new("UIListLayout"); layout.SortOrder=Enum.SortOrder.LayoutOrder; layout.Padding=UDim.new(0,2); layout.Parent=tabList
     local pad2 = Instance.new("UIPadding"); pad2.PaddingLeft=UDim.new(0,6); pad2.PaddingRight=UDim.new(0,6); pad2.PaddingTop=UDim.new(0,4); pad2.Parent=tabList
 
-    -- ADDED Social tab to the list
     local tabs     = {"General","Aimbot","ESP","Crosshair","Radar","Social","Report","Settings"}
     local tabIcons = {General="*",Aimbot="+",ESP="@",Crosshair="x",Radar="O",Social="&",Report="!",Settings="~"}
     local tabBtns  = {}
@@ -1527,29 +1526,16 @@ local function createGUI()
     end
 
     -- ====================================================================
-    -- ---- SOCIAL TAB (NEW) ----
+    -- ---- SOCIAL TAB ----
     -- ====================================================================
-    -- Helper to open URL: tries multiple executor methods, falls back to clipboard copy
     local function openURL(url)
         local opened = false
-        -- Try executor browser open functions (supported on most modern executors)
-        pcall(function()
-            if openurl then openurl(url); opened=true end
-        end)
-        if not opened then pcall(function()
-            if open_url then open_url(url); opened=true end
-        end) end
-        if not opened then pcall(function()
-            if OPENURL then OPENURL(url); opened=true end
-        end) end
-        if not opened then pcall(function()
-            if syn and syn.openurl then syn.openurl(url); opened=true end
-        end) end
-        -- Universal fallback: copy to clipboard so they can paste it
+        pcall(function() if openurl then openurl(url); opened=true end end)
+        if not opened then pcall(function() if open_url then open_url(url); opened=true end end) end
+        if not opened then pcall(function() if OPENURL then OPENURL(url); opened=true end end) end
+        if not opened then pcall(function() if syn and syn.openurl then syn.openurl(url); opened=true end end) end
         if not opened then
-            pcall(function()
-                if setclipboard then setclipboard(url) end
-            end)
+            pcall(function() if setclipboard then setclipboard(url) end end)
             sendNotification("Link Copied",url,5)
         else
             sendNotification("Browser Opened","Opening in browser...",3)
@@ -1557,7 +1543,6 @@ local function createGUI()
     end
 
     tabBuilders["Social"] = function(page)
-        -- Hero banner card spanning both columns
         local bannerW = CARD_W*2 + CONTENT_PAD
         local bannerH = 70
         local bannerY = col1Y(page).Value
@@ -1568,7 +1553,6 @@ local function createGUI()
             BorderSizePixel=0
         })
         UILib.corner(bannerBg,8); UILib.stroke(bannerBg,Color3.fromRGB(140,60,200),1.5)
-        -- accent side bar
         UILib.newFrame(bannerBg,{Size=UDim2.new(0,4,1,0),BackgroundColor3=Color3.fromRGB(180,80,255),BorderSizePixel=0})
         UILib.newLabel(bannerBg,{
             Size=UDim2.new(1,-16,0,28),Position=UDim2.new(0,14,0,8),
@@ -1581,12 +1565,10 @@ local function createGUI()
             TextColor3=Color3.fromRGB(130,110,155),
             TextSize=10,Font=Enum.Font.Gotham,TextXAlignment=Enum.TextXAlignment.Left
         })
-        -- update col trackers past the banner
         local bannerBottom = bannerY + bannerH + CONTENT_PAD
         col1Y(page).Value = bannerBottom
         col2Y(page).Value = bannerBottom
 
-        -- Link card builder: full-width clickable cards
         local function makeLinkCard(col, icon, label, sublabel, url, accentColor)
             local cardH = 54
             local x = col==1 and COL1_X or COL2_X
@@ -1598,9 +1580,7 @@ local function createGUI()
                 BorderSizePixel=0,Active=true
             })
             UILib.corner(cardBg,8); UILib.stroke(cardBg,accentColor,1.2)
-            -- left accent stripe
             UILib.newFrame(cardBg,{Size=UDim2.new(0,3,1,0),BackgroundColor3=accentColor,BorderSizePixel=0})
-            -- icon circle
             local iconCircle = UILib.newFrame(cardBg,{
                 Size=UDim2.new(0,32,0,32),Position=UDim2.new(0,14,0.5,-16),
                 BackgroundColor3=Color3.fromRGB(36,28,52),BorderSizePixel=0
@@ -1610,7 +1590,6 @@ local function createGUI()
                 TextColor3=accentColor,TextSize=14,Font=Enum.Font.GothamBold,
                 TextXAlignment=Enum.TextXAlignment.Center,TextYAlignment=Enum.TextYAlignment.Center
             })
-            -- text
             UILib.newLabel(cardBg,{
                 Size=UDim2.new(1,-70,0,18),Position=UDim2.new(0,54,0,8),
                 Text=label,TextColor3=Color3.fromRGB(220,215,235),
@@ -1622,13 +1601,11 @@ local function createGUI()
                 TextSize=9,Font=Enum.Font.Gotham,TextXAlignment=Enum.TextXAlignment.Left,
                 TextTruncate=Enum.TextTruncate.AtEnd
             })
-            -- open arrow label
             UILib.newLabel(cardBg,{
                 Size=UDim2.new(0,20,1,0),Position=UDim2.new(1,-24,0,0),
                 Text=">",TextColor3=accentColor,TextSize=14,Font=Enum.Font.GothamBold,
                 TextXAlignment=Enum.TextXAlignment.Center,TextYAlignment=Enum.TextYAlignment.Center
             })
-            -- clickable overlay button
             local clickBtn = UILib.newButton(cardBg,{
                 Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,Text="",ZIndex=5
             },function() openURL(url) end)
@@ -1642,31 +1619,11 @@ local function createGUI()
             page.CanvasSize = UDim2.new(0,0,0,math.max(col1Y(page).Value,col2Y(page).Value)+CONTENT_PAD)
         end
 
-        -- Website - col 1
-        makeLinkCard(1, "W", "Binxix Hub Website",
-            "binxixhub.vercel.app",
-            "https://binxixhub.vercel.app/",
-            Color3.fromRGB(160,80,255))
+        makeLinkCard(1, "W", "Binxix Hub Website","binxixhub.vercel.app","https://binxixhub.vercel.app/",Color3.fromRGB(160,80,255))
+        makeLinkCard(2, "T", "TikTok","@_binxix","https://www.tiktok.com/@_binxix",Color3.fromRGB(255,40,80))
+        makeLinkCard(1, "G", "guns.lol Profile","guns.lol/binxix","https://guns.lol/binxix",Color3.fromRGB(255,160,40))
+        makeLinkCard(2, "D", "Discord Server","discord.gg/S4nPV2Rx7F","https://discord.gg/S4nPV2Rx7F",Color3.fromRGB(88,101,242))
 
-        -- TikTok - col 2
-        makeLinkCard(2, "T", "TikTok",
-            "@_binxix",
-            "https://www.tiktok.com/@_binxix",
-            Color3.fromRGB(255,40,80))
-
-        -- guns.lol - col 1
-        makeLinkCard(1, "G", "guns.lol Profile",
-            "guns.lol/binxix",
-            "https://guns.lol/binxix",
-            Color3.fromRGB(255,160,40))
-
-        -- Discord - col 2
-        makeLinkCard(2, "D", "Discord Server",
-            "discord.gg/S4nPV2Rx7F",
-            "https://discord.gg/S4nPV2Rx7F",
-            Color3.fromRGB(88,101,242))
-
-        -- copy loadstring card spanning both cols
         local lsY = math.max(col1Y(page).Value, col2Y(page).Value)
         local lsBg = UILib.newFrame(page,{
             Size=UDim2.new(0,bannerW,0,44),
