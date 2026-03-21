@@ -304,34 +304,91 @@ local currentGameData = supportedGames[currentPlaceId] or {name="Universal", esp
 local gameConfig = {espEnabled=currentGameData.espEnabled}
 
 -- ====================================================================
--- EXTERNAL SCRIPT LOADER
+-- EXTERNAL SCRIPT LOADER (REDESIGNED PICKER)
 -- ====================================================================
 if currentGameData.loadScript then
     local choiceMade, loadExternal = false, false
     local cGui = UILib.newScreenGui("BinxixLoader")
-    local dim = UILib.newFrame(cGui,{Size=UDim2.new(1,0,1,0),BackgroundColor3=Color3.fromRGB(0,0,0),BackgroundTransparency=0.5,BorderSizePixel=0,ZIndex=100})
-    local cf = UILib.newFrame(cGui,{Size=UDim2.new(0,320,0,160),Position=UDim2.new(0.5,-160,0.5,-80),BackgroundColor3=Color3.fromRGB(25,25,30),BorderSizePixel=0,ZIndex=101})
-    UILib.corner(cf,8); UILib.stroke(cf,Color3.fromRGB(200,100,200),1)
-    UILib.newLabel(cf,{Text="Binxix Hub V7",Size=UDim2.new(1,-16,0,24),Position=UDim2.new(0,8,0,12),TextColor3=Color3.fromRGB(200,100,200),TextSize=16,Font=Enum.Font.SourceSansBold,ZIndex=102,TextXAlignment=Enum.TextXAlignment.Left})
-    UILib.newLabel(cf,{Text=currentGameData.name.." detected - choose:",Size=UDim2.new(1,-16,0,18),Position=UDim2.new(0,8,0,38),TextColor3=Color3.fromRGB(180,180,190),TextSize=12,ZIndex=102,TextXAlignment=Enum.TextXAlignment.Left})
-    local extBtn=UILib.newButton(cf,{Size=UDim2.new(0,135,0,40),Position=UDim2.new(0,20,0,72),BackgroundColor3=Color3.fromRGB(40,100,60),BorderSizePixel=0,Text="Load "..(currentGameData.scriptName or "External"),TextColor3=Color3.fromRGB(120,255,160),TextSize=13,Font=Enum.Font.SourceSansBold,ZIndex=102},function() choiceMade=true; loadExternal=true end); UILib.corner(extBtn,6)
-    local hubBtn=UILib.newButton(cf,{Size=UDim2.new(0,135,0,40),Position=UDim2.new(0,165,0,72),BackgroundColor3=Color3.fromRGB(80,40,100),BorderSizePixel=0,Text="Load Binxix Hub",TextColor3=Color3.fromRGB(200,150,255),TextSize=13,Font=Enum.Font.SourceSansBold,ZIndex=102},function() choiceMade=true; loadExternal=false end); UILib.corner(hubBtn,6)
-    local timerLbl=UILib.newLabel(cf,{Text="",Size=UDim2.new(1,-16,0,14),Position=UDim2.new(0,8,0,136),TextColor3=Color3.fromRGB(100,100,110),TextSize=10,ZIndex=102,TextXAlignment=Enum.TextXAlignment.Left})
+    cGui.DisplayOrder = 100
+
+    -- layered dim
+    UILib.newFrame(cGui,{Size=UDim2.new(1,0,1,0),BackgroundColor3=Color3.fromRGB(0,0,0),BackgroundTransparency=0.4,BorderSizePixel=0,ZIndex=100,Active=true})
+    UILib.newFrame(cGui,{Size=UDim2.new(1,0,1,0),BackgroundColor3=Color3.fromRGB(12,8,18),BackgroundTransparency=0.6,BorderSizePixel=0,ZIndex=100})
+
+    -- main card
+    local cf = UILib.newFrame(cGui,{Size=UDim2.new(0,380,0,220),Position=UDim2.new(0.5,-190,0.5,-110),BackgroundColor3=Color3.fromRGB(16,14,22),BorderSizePixel=0,ZIndex=101})
+    UILib.corner(cf,12)
+    UILib.stroke(cf,Color3.fromRGB(120,60,180),1.5)
+
+    -- top accent bar
+    local accentBar = UILib.newFrame(cf,{Size=UDim2.new(1,0,0,3),Position=UDim2.new(0,0,0,0),BackgroundColor3=Color3.fromRGB(180,80,255),BorderSizePixel=0,ZIndex=102})
+    UILib.corner(accentBar,12)
+    -- square off the bottom corners of the accent bar so it looks flush
+    UILib.newFrame(cf,{Size=UDim2.new(1,0,0,6),Position=UDim2.new(0,0,0,0),BackgroundColor3=Color3.fromRGB(16,14,22),BackgroundTransparency=1,BorderSizePixel=0,ZIndex=101})
+
+    -- title + version
+    UILib.newLabel(cf,{Text="BINXIX HUB",Size=UDim2.new(0,200,0,22),Position=UDim2.new(0,16,0,16),TextColor3=Color3.fromRGB(210,140,255),TextSize=17,Font=Enum.Font.GothamBold,ZIndex=103,TextXAlignment=Enum.TextXAlignment.Left})
+    UILib.newLabel(cf,{Text="v"..SCRIPT_VERSION_DISPLAY,Size=UDim2.new(0,60,0,22),Position=UDim2.new(1,-76,0,16),TextColor3=Color3.fromRGB(100,80,130),TextSize=12,Font=Enum.Font.GothamBold,ZIndex=103,TextXAlignment=Enum.TextXAlignment.Right})
+
+    -- divider
+    UILib.newFrame(cf,{Size=UDim2.new(1,-32,0,1),Position=UDim2.new(0,16,0,44),BackgroundColor3=Color3.fromRGB(50,35,70),BorderSizePixel=0,ZIndex=102})
+
+    -- subtitle
+    UILib.newLabel(cf,{Text=currentGameData.name.." detected. Choose a script to load:",Size=UDim2.new(1,-32,0,18),Position=UDim2.new(0,16,0,54),TextColor3=Color3.fromRGB(160,145,180),TextSize=11,Font=Enum.Font.Gotham,ZIndex=102,TextXAlignment=Enum.TextXAlignment.Left})
+
+    -- external script button (green, left)
+    local extBtn = UILib.newButton(cf,{
+        Size=UDim2.new(0,164,0,56),Position=UDim2.new(0,16,0,82),
+        BackgroundColor3=Color3.fromRGB(22,44,28),BorderSizePixel=0,Text="",ZIndex=102
+    },function() choiceMade=true; loadExternal=true end)
+    UILib.corner(extBtn,8); UILib.stroke(extBtn,Color3.fromRGB(50,160,80),1.2)
+    UILib.newLabel(extBtn,{Text=currentGameData.scriptName or "External Script",Size=UDim2.new(1,-8,0,18),Position=UDim2.new(0,4,0,8),TextColor3=Color3.fromRGB(80,230,120),TextSize=13,Font=Enum.Font.GothamBold,ZIndex=103,TextXAlignment=Enum.TextXAlignment.Center})
+    UILib.newLabel(extBtn,{Text="Recommended",Size=UDim2.new(1,-8,0,14),Position=UDim2.new(0,4,0,28),TextColor3=Color3.fromRGB(50,150,75),TextSize=9,Font=Enum.Font.Gotham,ZIndex=103,TextXAlignment=Enum.TextXAlignment.Center})
+    extBtn.MouseEnter:Connect(function() extBtn.BackgroundColor3=Color3.fromRGB(28,58,35) end)
+    extBtn.MouseLeave:Connect(function() extBtn.BackgroundColor3=Color3.fromRGB(22,44,28) end)
+
+    -- hub button (purple, right)
+    local hubBtn = UILib.newButton(cf,{
+        Size=UDim2.new(0,164,0,56),Position=UDim2.new(0,200,0,82),
+        BackgroundColor3=Color3.fromRGB(35,18,55),BorderSizePixel=0,Text="",ZIndex=102
+    },function() choiceMade=true; loadExternal=false end)
+    UILib.corner(hubBtn,8); UILib.stroke(hubBtn,Color3.fromRGB(140,60,200),1.2)
+    UILib.newLabel(hubBtn,{Text="Binxix Hub V7",Size=UDim2.new(1,-8,0,18),Position=UDim2.new(0,4,0,8),TextColor3=Color3.fromRGB(200,130,255),TextSize=13,Font=Enum.Font.GothamBold,ZIndex=103,TextXAlignment=Enum.TextXAlignment.Center})
+    UILib.newLabel(hubBtn,{Text="Full feature hub",Size=UDim2.new(1,-8,0,14),Position=UDim2.new(0,4,0,28),TextColor3=Color3.fromRGB(120,70,170),TextSize=9,Font=Enum.Font.Gotham,ZIndex=103,TextXAlignment=Enum.TextXAlignment.Center})
+    hubBtn.MouseEnter:Connect(function() hubBtn.BackgroundColor3=Color3.fromRGB(48,24,72) end)
+    hubBtn.MouseLeave:Connect(function() hubBtn.BackgroundColor3=Color3.fromRGB(35,18,55) end)
+
+    -- countdown progress bar
+    local countdownBg = UILib.newFrame(cf,{Size=UDim2.new(1,-32,0,3),Position=UDim2.new(0,16,0,156),BackgroundColor3=Color3.fromRGB(35,28,48),BorderSizePixel=0,ZIndex=102}); UILib.corner(countdownBg,4)
+    local countdownFill = UILib.newFrame(countdownBg,{Size=UDim2.new(1,0,1,0),BackgroundColor3=Color3.fromRGB(80,200,100),BorderSizePixel=0,ZIndex=103}); UILib.corner(countdownFill,4)
+    local timerLbl = UILib.newLabel(cf,{Text="",Size=UDim2.new(1,-32,0,14),Position=UDim2.new(0,16,0,166),TextColor3=Color3.fromRGB(90,80,110),TextSize=9,Font=Enum.Font.Gotham,ZIndex=102,TextXAlignment=Enum.TextXAlignment.Left})
+
     task.spawn(function()
-        for i=10,1,-1 do
+        local total = 10
+        for i=total,1,-1 do
             if choiceMade then break end
             timerLbl.Text="Auto-loading "..currentGameData.scriptName.." in "..i.."s..."
+            TweenService:Create(countdownFill,TweenInfo.new(1,Enum.EasingStyle.Linear),{Size=UDim2.new((i-1)/total,0,1,0)}):Play()
             task.wait(1)
         end
         if not choiceMade then choiceMade=true; loadExternal=true end
     end)
+
     while not choiceMade do task.wait(0.05) end
     if loadExternal then
-        _G.BinxixUnloaded=true; extBtn:Destroy(); hubBtn:Destroy()
-        local ll=UILib.newLabel(cf,{Size=UDim2.new(1,0,1,0),BackgroundColor3=Color3.fromRGB(25,25,30),Text="Loading "..currentGameData.scriptName.."...",TextColor3=Color3.fromRGB(200,200,210),TextSize=14,Font=Enum.Font.SourceSans,ZIndex=103})
-        task.spawn(function() task.wait(0.3); local ok,err=pcall(function() loadstring(game:HttpGet(currentGameData.loadScript))() end); ll.Text=ok and (currentGameData.scriptName.." Loaded!") or ("Failed: "..tostring(err)); task.wait(ok and 1.5 or 3); cGui:Destroy() end)
+        _G.BinxixUnloaded=true
+        extBtn:Destroy(); hubBtn:Destroy()
+        local ll=UILib.newLabel(cf,{Size=UDim2.new(1,0,1,0),BackgroundColor3=Color3.fromRGB(16,14,22),Text="Loading "..currentGameData.scriptName.."...",TextColor3=Color3.fromRGB(200,200,210),TextSize=14,Font=Enum.Font.SourceSans,ZIndex=103})
+        task.spawn(function()
+            task.wait(0.3)
+            local ok,err=pcall(function() loadstring(game:HttpGet(currentGameData.loadScript))() end)
+            ll.Text=ok and (currentGameData.scriptName.." Loaded!") or ("Failed: "..tostring(err))
+            task.wait(ok and 1.5 or 3); cGui:Destroy()
+        end)
         return
-    else cGui:Destroy(); gameConfig.espEnabled=true end
+    else
+        cGui:Destroy(); gameConfig.espEnabled=true
+    end
 end
 
 -- ====================================================================
@@ -396,7 +453,6 @@ local flyBodyGyro          = nil
 local isFlying             = false
 local targetList           = {}
 local targetIndex          = 1
--- FIX: single shared keybind-listening flag so rows don't fight each other
 local waitingForKey        = false
 
 -- ====================================================================
@@ -592,7 +648,7 @@ end
 -- AUTO TP
 -- ====================================================================
 local autoTPTarget=nil
-local autoTPRunning=false  -- FIX: flag-based loop control instead of task.cancel
+local autoTPRunning=false
 
 local function isProtected(target) local tc=target.Character; if not tc then return true end; local h=tc:FindFirstChild("Humanoid"); if not h then return true end; for _,c in ipairs(tc:GetChildren()) do if c:IsA("ForceField") then return true end end; if h:FindFirstChild("ForceField") then return true end; if h.MaxHealth>=999999 then return true end; return false end
 local function getNextTPTarget()
@@ -622,11 +678,12 @@ local function stopAutoTPLoop()
 end
 
 -- ====================================================================
--- ANIMATED LOADER
+-- ANIMATED LOADER (FIXED: DisplayOrder set so it renders on top)
 -- ====================================================================
 local function showLoader()
     local gui=UILib.newScreenGui("BinxixLoader_V7")
-    UILib.newFrame(gui,{Size=UDim2.new(1,0,1,0),BackgroundColor3=Color3.fromRGB(0,0,0),BackgroundTransparency=0.15,BorderSizePixel=0,ZIndex=200})
+    gui.DisplayOrder=100
+    UILib.newFrame(gui,{Size=UDim2.new(1,0,1,0),BackgroundColor3=Color3.fromRGB(0,0,0),BackgroundTransparency=0.15,BorderSizePixel=0,ZIndex=200,Active=true})
     local card=UILib.newFrame(gui,{Size=UDim2.new(0,320,0,300),AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.new(0.5,0,0.5,0),BackgroundColor3=Color3.fromRGB(13,13,16),BorderSizePixel=0,ZIndex=201})
     UILib.corner(card,12); UILib.stroke(card,Color3.fromRGB(48,48,58),1.2)
     local function L(p,t,pos,sz,col,ts,font,align,zi) return UILib.newLabel(p,{Text=t,Size=sz,Position=pos,TextColor3=col,TextSize=ts,Font=font or Enum.Font.Gotham,TextXAlignment=align or Enum.TextXAlignment.Center,ZIndex=zi or 202}) end
@@ -804,12 +861,10 @@ local function createGUI()
             local hrpSP,hrpOn=cam:WorldToViewportPoint(tPos)
             local hrpV2=hrpOn and hrpSP.Z>0 and Vector2.new(hrpSP.X,hrpSP.Y) or nil
 
-            -- FIX: Billboard parent set to tc but adornee check guards thead destruction
             if thead and thum then
                 if not espObjects[target.UserId] then createESP(target) end
                 local d=espObjects[target.UserId]
                 if d and d.billboard then
-                    -- FIX: guard thead still exists before assigning adornee
                     if thead and thead.Parent then
                         d.billboard.Adornee=thead; d.billboard.Parent=tc; d.billboard.Enabled=true
                     end
@@ -883,9 +938,6 @@ local function createGUI()
                 end
             end
         end
-
-        -- FIX: Use PlayerRemoving event instead of scanning espObjects every frame
-        -- (cleanup handled below via Players.PlayerRemoving connection)
     end))
 
     table.insert(allConnections,Players.PlayerRemoving:Connect(function(t)
@@ -933,8 +985,9 @@ local function createGUI()
     local layout = Instance.new("UIListLayout"); layout.SortOrder=Enum.SortOrder.LayoutOrder; layout.Padding=UDim.new(0,2); layout.Parent=tabList
     local pad2 = Instance.new("UIPadding"); pad2.PaddingLeft=UDim.new(0,6); pad2.PaddingRight=UDim.new(0,6); pad2.PaddingTop=UDim.new(0,4); pad2.Parent=tabList
 
-    local tabs     = {"General","Aimbot","ESP","Crosshair","Radar","Report","Settings"}
-    local tabIcons = {General="*",Aimbot="+",ESP="@",Crosshair="x",Radar="O",Report="!",Settings="~"}
+    -- ADDED Social tab to the list
+    local tabs     = {"General","Aimbot","ESP","Crosshair","Radar","Social","Report","Settings"}
+    local tabIcons = {General="*",Aimbot="+",ESP="@",Crosshair="x",Radar="O",Social="&",Report="!",Settings="~"}
     local tabBtns  = {}
     local tabPages = {}
     local tabBuilt = {}
@@ -968,7 +1021,6 @@ local function createGUI()
         local pill = UILib.newFrame(row,{Size=UDim2.new(0,PILL_W,0,PILL_H),Position=UDim2.new(1,-PILL_W-2,0.5,-PILL_H/2),BackgroundColor3=default and Theme.ToggleOn or Theme.ToggleOff,BorderSizePixel=0}); UILib.corner(pill,100)
         local knob = UILib.newFrame(pill,{Size=UDim2.new(0,PILL_H-4,0,PILL_H-4),Position=default and UDim2.new(1,-(PILL_H-2),0.5,-(PILL_H-4)/2) or UDim2.new(0,2,0.5,-(PILL_H-4)/2),BackgroundColor3=Theme.ToggleKnob,BorderSizePixel=0}); UILib.corner(knob,100)
         local enabled = default
-        -- FIX: check waitingForKey so toggle clicks don't fire during keybind capture
         UILib.newButton(row,{Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,Text="",ZIndex=2},function()
             if isUnloading or _G.BinxixUnloaded or waitingForKey then return end
             enabled = not enabled
@@ -984,7 +1036,6 @@ local function createGUI()
         }
     end
 
-    -- SHARED SLIDER DISPATCHER
     local activeSlider = nil
     table.insert(allConnections,UserInputService.InputEnded:Connect(function(inp)
         if inp.UserInputType==Enum.UserInputType.MouseButton1 then activeSlider=nil end
@@ -1023,7 +1074,6 @@ local function createGUI()
         return row
     end
 
-    -- FIX: addEnumRow — proper idx capture, initial highlight, theme callback
     local function addEnumRow(body, label, yOff, options, default, callback)
         local ROW2 = ROW_H + 26
         local row = UILib.newFrame(body,{Size=UDim2.new(1,0,0,ROW2),Position=UDim2.new(0,0,0,yOff),BackgroundTransparency=1,BorderSizePixel=0})
@@ -1032,8 +1082,6 @@ local function createGUI()
         local perBtn = math.floor(btnRowW / math.max(#options,1)) - 1
         local selected = default
         local btns = {}
-
-        -- FIX: centralised highlight function so all buttons update correctly
         local function setSelected(idx)
             selected = options[idx]
             for i,b in ipairs(btns) do
@@ -1041,18 +1089,15 @@ local function createGUI()
                 b.TextColor3 = i==idx and Theme.EnumTextActive or Theme.EnumText
             end
         end
-
         for i,opt in ipairs(options) do
-            local idx = i  -- FIX: capture by value so each closure has correct index
+            local idx = i
             local eb=UILib.newButton(row,{
                 Size=UDim2.new(0,perBtn,0,18),
                 Position=UDim2.new(0,(i-1)*(perBtn+2),0,16),
                 BackgroundColor3=opt==default and Theme.EnumBgActive or Theme.EnumBg,
-                BorderSizePixel=0,
-                Text=opt,
+                BorderSizePixel=0,Text=opt,
                 TextColor3=opt==default and Theme.EnumTextActive or Theme.EnumText,
-                TextSize=9,
-                Font=Enum.Font.GothamBold
+                TextSize=9,Font=Enum.Font.GothamBold
             },function()
                 if isUnloading or _G.BinxixUnloaded or waitingForKey then return end
                 setSelected(idx)
@@ -1061,25 +1106,18 @@ local function createGUI()
             UILib.corner(eb,4)
             table.insert(btns,eb)
         end
-
-        -- FIX: apply initial highlight after btns table is fully built
         for i,opt in ipairs(options) do
             if opt==default then setSelected(i); break end
         end
-
-        -- FIX: re-apply correct highlight on theme change
         table.insert(themeCallbacks,function()
             for i,b in ipairs(btns) do
                 b.BackgroundColor3 = options[i]==selected and Theme.EnumBgActive or Theme.EnumBg
                 b.TextColor3 = options[i]==selected and Theme.EnumTextActive or Theme.EnumText
             end
         end)
-
         return row
     end
 
-    -- FIX: addKeybindRow — uses shared waitingForKey flag + deferred callback so the
-    -- captured key press doesn't also fire the global action handler in the same event cycle
     local function addKeybindRow(body, label, yOff, default, callback)
         local row = UILib.newFrame(body,{Size=UDim2.new(1,0,0,ROW_H),Position=UDim2.new(0,0,0,yOff),BackgroundTransparency=1,BorderSizePixel=0})
         UILib.newLabel(row,{Size=UDim2.new(1,-60,1,0),Text=label,TextColor3=Theme.TextSecondary,TextSize=10,Font=Enum.Font.Gotham,TextXAlignment=Enum.TextXAlignment.Left})
@@ -1092,12 +1130,6 @@ local function createGUI()
         table.insert(allConnections,UserInputService.InputBegan:Connect(function(inp,gp)
             if not waitingForKey then return end
             if inp.UserInputType~=Enum.UserInputType.Keyboard then return end
-            -- Clear flag FIRST so global handler sees waitingForKey=false
-            -- but use task.defer so the callback (which updates Settings.Keybinds.X)
-            -- runs AFTER the current InputBegan event has fully propagated.
-            -- Without defer: captured key updates Settings.Keybinds.ToggleAutoTP = L,
-            -- then global handler checks input.KeyCode==Settings.Keybinds.ToggleAutoTP
-            -- which NOW equals L, so it fires the action immediately.
             cur=inp.KeyCode
             kbBtn.Text=inp.KeyCode.Name; kbBtn.TextColor3=Theme.KeybindText
             waitingForKey=false
@@ -1224,7 +1256,6 @@ local function createGUI()
     -- ================================================================
 
     -- ---- GENERAL ----
-    -- FIX: speedVel declared here so General tab callbacks and Heartbeat share it
     local speedVel = nil
 
     tabBuilders["General"] = function(page)
@@ -1233,22 +1264,18 @@ local function createGUI()
                 {"toggle","Speed Boost",Settings.Movement.SpeedEnabled,function(e)
                     Settings.Movement.SpeedEnabled=e
                     if not e then
-                        -- FIX: destroy velocity and reset WalkSpeed on disable
                         if speedVel then pcall(function() speedVel:Destroy() end); speedVel=nil end
                         local c=player.Character; if c then local h=c:FindFirstChild("Humanoid"); if h then h.WalkSpeed=16 end end
                     end
                 end},
                 {"slider","Speed",1,300,Settings.Movement.Speed,function(v)
                     Settings.Movement.Speed=v
-                    -- apply immediately if using WalkSpeed method
                     if Settings.Movement.SpeedEnabled and Settings.Movement.SpeedMethod=="WalkSpeed" then
                         local c=player.Character; if c then local h=c:FindFirstChild("Humanoid"); if h then h.WalkSpeed=v end end
                     end
                 end},
-                -- FIX: method enum uses correct map, cleans up velocity before switching
                 {"enum","Method",{"Walk","CFrame","Vel"},"Walk",function(v)
                     local m={Walk="WalkSpeed",CFrame="CFrame",Vel="Velocity"}
-                    -- destroy old velocity before switching methods
                     if speedVel then pcall(function() speedVel:Destroy() end); speedVel=nil end
                     local c=player.Character; if c then local h=c:FindFirstChild("Humanoid"); if h then h.WalkSpeed=16 end end
                     Settings.Movement.SpeedMethod=m[v] or "WalkSpeed"
@@ -1339,7 +1366,6 @@ local function createGUI()
             {"info","Tab = cycle targets when Multi-Target on",Theme.TextDim},
         })
         addCard(page,1,"Aim Config",{
-            -- FIX: smoothness displayed as 0-100 int to avoid confusing decimal display
             {"slider","Smoothness",1,100,math.floor(Settings.Aimbot.Smoothness*100),function(v) Settings.Aimbot.Smoothness=v/100 end},
             {"slider","Prediction Amt",1,30,math.floor(Settings.Aimbot.PredictionAmount*100),function(v) Settings.Aimbot.PredictionAmount=v/100 end},
             {"slider","Max Distance",100,1000,Settings.Aimbot.MaxDistance,function(v) Settings.Aimbot.MaxDistance=v end},
@@ -1351,7 +1377,6 @@ local function createGUI()
         addCard(page,2,"FOV",{
             {"toggle","Show FOV Circle",Settings.Aimbot.ShowFOV,function(e) Settings.Aimbot.ShowFOV=e end},
             {"slider","FOV Radius",50,400,Settings.Aimbot.FOVRadius,function(v) Settings.Aimbot.FOVRadius=v end},
-            -- FIX: opacity displayed as 0-100 int
             {"slider","FOV Opacity",0,100,math.floor(Settings.Aimbot.FOVOpacity*100),function(v) Settings.Aimbot.FOVOpacity=v/100 end},
         })
     end
@@ -1375,7 +1400,6 @@ local function createGUI()
                 end},
             })
             addCard(page,1,"Chams",{
-                -- FIX: chams fill displayed as 0-100 int
                 {"slider","Chams Fill",0,100,math.floor(Settings.ESP.ChamsFillTransparency*100),function(v) Settings.ESP.ChamsFillTransparency=v/100 end},
                 {"slider","Font Size",10,24,Settings.ESP.FontSize,function(v) Settings.ESP.FontSize=v end},
             })
@@ -1425,7 +1449,6 @@ local function createGUI()
             {"slider","Gap",0,30,Settings.Crosshair.Gap,function(v) Settings.Crosshair.Gap=v end},
             {"slider","Center Dot Size",1,12,Settings.Crosshair.CenterDotSize,function(v) Settings.Crosshair.CenterDotSize=v end},
             {"slider","Outline Thick",1,4,Settings.Crosshair.OutlineThickness,function(v) Settings.Crosshair.OutlineThickness=v end},
-            -- FIX: opacity displayed as 0-100 int
             {"slider","Opacity %",0,100,math.floor(Settings.Crosshair.Opacity*100),function(v) Settings.Crosshair.Opacity=v/100 end},
         })
         local col2y = col2Y(page)
@@ -1437,8 +1460,6 @@ local function createGUI()
             local preview = UILib.newFrame(body,{Size=UDim2.new(0,16,0,16),Position=UDim2.new(1,-18,0,startY),BackgroundColor3=getColor(),BorderSizePixel=0}); UILib.corner(preview,3)
             local channels={{Color3.fromRGB(255,80,80),"R"},{Color3.fromRGB(80,220,80),"G"},{Color3.fromRGB(80,120,255),"B"}}
             local vals = {r, g, b}
-
-            -- Helper: sample mouse X against a track and update channel
             local function sampleTrack(track, fill, knob, chanIdx)
                 local mx = player:GetMouse().X
                 local rx = math.clamp((mx - track.AbsolutePosition.X) / math.max(track.AbsoluteSize.X, 1), 0, 1)
@@ -1449,33 +1470,24 @@ local function createGUI()
                 local newCol = Color3.fromRGB(vals[1], vals[2], vals[3])
                 setColor(newCol); preview.BackgroundColor3 = newCol
             end
-
             for i, ch in ipairs(channels) do
                 local yy = startY + (i-1)*26
-                local idx = i  -- capture by value
+                local idx = i
                 UILib.newLabel(body,{Size=UDim2.new(0,10,0,12),Position=UDim2.new(0,0,0,yy+6),Text=ch[2],TextColor3=ch[1],TextSize=9,Font=Enum.Font.GothamBold})
                 local track=UILib.newFrame(body,{Size=UDim2.new(1,-16,0,4),Position=UDim2.new(0,14,0,yy+10),BackgroundColor3=Theme.SliderTrack,BorderSizePixel=0}); UILib.corner(track,4)
                 local fill=UILib.newFrame(track,{Size=UDim2.new(vals[i]/255,0,1,0),BackgroundColor3=ch[1],BorderSizePixel=0}); UILib.corner(fill,4)
                 local knob=UILib.newFrame(track,{Size=UDim2.new(0,10,0,10),AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.new(vals[i]/255,0,0.5,0),BackgroundColor3=Theme.ToggleKnob,BorderSizePixel=0}); UILib.corner(knob,100)
-
-                -- FIX: Use the shared activeSlider dispatcher (same as normal sliders)
-                -- but with a wider invisible hit zone that covers the full row height
-                -- Use a slightly visible background (transparency 0.99) so MouseButton1Down
-                -- fires reliably on all executors — fully transparent buttons can be skipped
                 local hitZone = Instance.new("TextButton")
                 hitZone.Size = UDim2.new(1, 0, 0, 22)
                 hitZone.Position = UDim2.new(0, 0, 0, yy + 2)
-                hitZone.BackgroundTransparency = 0.99  -- near-invisible but not fully transparent
+                hitZone.BackgroundTransparency = 0.99
                 hitZone.BorderSizePixel = 0
                 hitZone.Text = ""
                 hitZone.ZIndex = 5
                 hitZone.Parent = body
-
                 hitZone.MouseButton1Down:Connect(function()
                     if isUnloading or _G.BinxixUnloaded then return end
-                    -- Sample immediately on click (point-click with no drag still works)
                     sampleTrack(track, fill, knob, idx)
-                    -- Also register as active slider for drag
                     activeSlider = {
                         track = track, fill = fill, knob = knob,
                         valLbl = nil, min = 0, max = 255,
@@ -1505,7 +1517,6 @@ local function createGUI()
             {"toggle","Enable Radar",Settings.Radar.Enabled,function(e) Settings.Radar.Enabled=e; sendNotification("Radar",e and "On" or "Off",2) end},
             {"slider","Radar Size",80,300,Settings.Radar.Size,function(v) Settings.Radar.Size=v; radarGui.Size=UDim2.new(0,v,0,v); radarGui.Position=UDim2.new(0,10,1,-v-10) end},
             {"slider","Range (studs)",50,1000,Settings.Radar.Range,function(v) Settings.Radar.Range=v end},
-            -- FIX: scale displayed as 0-100 int
             {"slider","Dot Scale",0,100,math.floor(Settings.Radar.Scale*100),function(v) Settings.Radar.Scale=v/100 end},
             {"info","Radar appears bottom-left when enabled.",Theme.TextDim},
         })
@@ -1513,6 +1524,174 @@ local function createGUI()
             {"info","Enemy dot: red  Team dot: green  Self: white",Theme.TextDim},
             {"info","Color customization in Settings > Custom Theme.",Theme.TextDim},
         })
+    end
+
+    -- ====================================================================
+    -- ---- SOCIAL TAB (NEW) ----
+    -- ====================================================================
+    -- Helper to open URL: tries multiple executor methods, falls back to clipboard copy
+    local function openURL(url)
+        local opened = false
+        -- Try executor browser open functions (supported on most modern executors)
+        pcall(function()
+            if openurl then openurl(url); opened=true end
+        end)
+        if not opened then pcall(function()
+            if open_url then open_url(url); opened=true end
+        end) end
+        if not opened then pcall(function()
+            if OPENURL then OPENURL(url); opened=true end
+        end) end
+        if not opened then pcall(function()
+            if syn and syn.openurl then syn.openurl(url); opened=true end
+        end) end
+        -- Universal fallback: copy to clipboard so they can paste it
+        if not opened then
+            pcall(function()
+                if setclipboard then setclipboard(url) end
+            end)
+            sendNotification("Link Copied",url,5)
+        else
+            sendNotification("Browser Opened","Opening in browser...",3)
+        end
+    end
+
+    tabBuilders["Social"] = function(page)
+        -- Hero banner card spanning both columns
+        local bannerW = CARD_W*2 + CONTENT_PAD
+        local bannerH = 70
+        local bannerY = col1Y(page).Value
+        local bannerBg = UILib.newFrame(page,{
+            Size=UDim2.new(0,bannerW,0,bannerH),
+            Position=UDim2.new(0,COL1_X,0,bannerY),
+            BackgroundColor3=Color3.fromRGB(24,16,36),
+            BorderSizePixel=0
+        })
+        UILib.corner(bannerBg,8); UILib.stroke(bannerBg,Color3.fromRGB(140,60,200),1.5)
+        -- accent side bar
+        UILib.newFrame(bannerBg,{Size=UDim2.new(0,4,1,0),BackgroundColor3=Color3.fromRGB(180,80,255),BorderSizePixel=0})
+        UILib.newLabel(bannerBg,{
+            Size=UDim2.new(1,-16,0,28),Position=UDim2.new(0,14,0,8),
+            Text="binxix",TextColor3=Color3.fromRGB(210,140,255),
+            TextSize=22,Font=Enum.Font.GothamBold,TextXAlignment=Enum.TextXAlignment.Left
+        })
+        UILib.newLabel(bannerBg,{
+            Size=UDim2.new(1,-16,0,18),Position=UDim2.new(0,14,0,38),
+            Text="Click any link below to open it in your browser",
+            TextColor3=Color3.fromRGB(130,110,155),
+            TextSize=10,Font=Enum.Font.Gotham,TextXAlignment=Enum.TextXAlignment.Left
+        })
+        -- update col trackers past the banner
+        local bannerBottom = bannerY + bannerH + CONTENT_PAD
+        col1Y(page).Value = bannerBottom
+        col2Y(page).Value = bannerBottom
+
+        -- Link card builder: full-width clickable cards
+        local function makeLinkCard(col, icon, label, sublabel, url, accentColor)
+            local cardH = 54
+            local x = col==1 and COL1_X or COL2_X
+            local yVal = col==1 and col1Y(page) or col2Y(page)
+            local cardBg = UILib.newFrame(page,{
+                Size=UDim2.new(0,CARD_W,0,cardH),
+                Position=UDim2.new(0,x,0,yVal.Value),
+                BackgroundColor3=Color3.fromRGB(26,22,36),
+                BorderSizePixel=0,Active=true
+            })
+            UILib.corner(cardBg,8); UILib.stroke(cardBg,accentColor,1.2)
+            -- left accent stripe
+            UILib.newFrame(cardBg,{Size=UDim2.new(0,3,1,0),BackgroundColor3=accentColor,BorderSizePixel=0})
+            -- icon circle
+            local iconCircle = UILib.newFrame(cardBg,{
+                Size=UDim2.new(0,32,0,32),Position=UDim2.new(0,14,0.5,-16),
+                BackgroundColor3=Color3.fromRGB(36,28,52),BorderSizePixel=0
+            }); UILib.corner(iconCircle,100); UILib.stroke(iconCircle,accentColor,1)
+            UILib.newLabel(iconCircle,{
+                Size=UDim2.new(1,0,1,0),Text=icon,
+                TextColor3=accentColor,TextSize=14,Font=Enum.Font.GothamBold,
+                TextXAlignment=Enum.TextXAlignment.Center,TextYAlignment=Enum.TextYAlignment.Center
+            })
+            -- text
+            UILib.newLabel(cardBg,{
+                Size=UDim2.new(1,-70,0,18),Position=UDim2.new(0,54,0,8),
+                Text=label,TextColor3=Color3.fromRGB(220,215,235),
+                TextSize=12,Font=Enum.Font.GothamBold,TextXAlignment=Enum.TextXAlignment.Left
+            })
+            UILib.newLabel(cardBg,{
+                Size=UDim2.new(1,-70,0,14),Position=UDim2.new(0,54,0,28),
+                Text=sublabel,TextColor3=Color3.fromRGB(120,110,140),
+                TextSize=9,Font=Enum.Font.Gotham,TextXAlignment=Enum.TextXAlignment.Left,
+                TextTruncate=Enum.TextTruncate.AtEnd
+            })
+            -- open arrow label
+            UILib.newLabel(cardBg,{
+                Size=UDim2.new(0,20,1,0),Position=UDim2.new(1,-24,0,0),
+                Text=">",TextColor3=accentColor,TextSize=14,Font=Enum.Font.GothamBold,
+                TextXAlignment=Enum.TextXAlignment.Center,TextYAlignment=Enum.TextYAlignment.Center
+            })
+            -- clickable overlay button
+            local clickBtn = UILib.newButton(cardBg,{
+                Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,Text="",ZIndex=5
+            },function() openURL(url) end)
+            clickBtn.MouseEnter:Connect(function()
+                UILib.tween(cardBg,0.12,{BackgroundColor3=Color3.fromRGB(36,28,52)}):Play()
+            end)
+            clickBtn.MouseLeave:Connect(function()
+                UILib.tween(cardBg,0.12,{BackgroundColor3=Color3.fromRGB(26,22,36)}):Play()
+            end)
+            yVal.Value = yVal.Value + cardH + CONTENT_PAD
+            page.CanvasSize = UDim2.new(0,0,0,math.max(col1Y(page).Value,col2Y(page).Value)+CONTENT_PAD)
+        end
+
+        -- Website - col 1
+        makeLinkCard(1, "W", "Binxix Hub Website",
+            "binxixhub.vercel.app",
+            "https://binxixhub.vercel.app/",
+            Color3.fromRGB(160,80,255))
+
+        -- TikTok - col 2
+        makeLinkCard(2, "T", "TikTok",
+            "@_binxix",
+            "https://www.tiktok.com/@_binxix",
+            Color3.fromRGB(255,40,80))
+
+        -- guns.lol - col 1
+        makeLinkCard(1, "G", "guns.lol Profile",
+            "guns.lol/binxix",
+            "https://guns.lol/binxix",
+            Color3.fromRGB(255,160,40))
+
+        -- Discord - col 2
+        makeLinkCard(2, "D", "Discord Server",
+            "discord.gg/S4nPV2Rx7F",
+            "https://discord.gg/S4nPV2Rx7F",
+            Color3.fromRGB(88,101,242))
+
+        -- copy loadstring card spanning both cols
+        local lsY = math.max(col1Y(page).Value, col2Y(page).Value)
+        local lsBg = UILib.newFrame(page,{
+            Size=UDim2.new(0,bannerW,0,44),
+            Position=UDim2.new(0,COL1_X,0,lsY),
+            BackgroundColor3=Color3.fromRGB(20,26,20),BorderSizePixel=0
+        })
+        UILib.corner(lsBg,8); UILib.stroke(lsBg,Color3.fromRGB(50,180,80),1)
+        UILib.newLabel(lsBg,{
+            Size=UDim2.new(1,-120,1,0),Position=UDim2.new(0,12,0,0),
+            Text="Copy Loadstring to Clipboard",
+            TextColor3=Color3.fromRGB(100,220,120),TextSize=11,Font=Enum.Font.GothamBold,
+            TextXAlignment=Enum.TextXAlignment.Left,TextYAlignment=Enum.TextYAlignment.Center
+        })
+        local copyBtn = UILib.newButton(lsBg,{
+            Size=UDim2.new(0,90,0,28),Position=UDim2.new(1,-98,0.5,-14),
+            BackgroundColor3=Color3.fromRGB(35,80,40),BorderSizePixel=0,
+            Text="Copy",TextColor3=Color3.fromRGB(100,220,120),TextSize=11,Font=Enum.Font.GothamBold
+        },function()
+            local ls='loadstring(game:HttpGet("https://raw.githubusercontent.com/binx-ux/binxix-hub-v7/main/source/main.lua"))()'
+            pcall(function() if setclipboard then setclipboard(ls) end end)
+            sendNotification("Loadstring","Copied to clipboard!",3)
+        end); UILib.corner(copyBtn,6)
+        col1Y(page).Value = lsY + 44 + CONTENT_PAD
+        col2Y(page).Value = col1Y(page).Value
+        page.CanvasSize = UDim2.new(0,0,0,col1Y(page).Value+CONTENT_PAD)
     end
 
     -- ---- REPORT ----
@@ -1652,7 +1831,6 @@ local function createGUI()
         local t,sz,gap=s.Thickness,s.Size,s.Gap; local tk=s.OutlineThickness
         local dg=gap
         if s.DynamicSpread then local c=player.Character; if c then local hrp=c:FindFirstChild("HumanoidRootPart"); if hrp then local v=Vector3.new(hrp.AssemblyLinearVelocity.X,0,hrp.AssemblyLinearVelocity.Z).Magnitude; dg=gap+math.floor(v*0.15) end end end
-        -- FIX: use AbsoluteSize with fallback to viewport size to avoid 0,0 on first frame
         local cam=Workspace.CurrentCamera
         local vs=cam and cam.ViewportSize or Vector2.new(800,600)
         local asx=chFrame.AbsoluteSize.X>0 and chFrame.AbsoluteSize.X or vs.X
@@ -1688,8 +1866,6 @@ local function createGUI()
     -- ================================================================
     -- GAMEPLAY LOOPS
     -- ================================================================
-
-    -- FIX: Speed Heartbeat — WalkSpeed enforced every frame (no conditional), proper method cleanup
     table.insert(allConnections,RunService.Heartbeat:Connect(function(dt)
         if isUnloading or _G.BinxixUnloaded then
             if speedVel then pcall(function() speedVel:Destroy() end); speedVel=nil end
@@ -1707,7 +1883,6 @@ local function createGUI()
         local spd=Settings.Movement.Speed
 
         if method=="WalkSpeed" then
-            -- FIX: destroy velocity so it doesn't conflict, enforce WalkSpeed unconditionally every frame
             if speedVel then pcall(function() speedVel:Destroy() end); speedVel=nil end
             hum.WalkSpeed=spd
             return
@@ -1734,12 +1909,10 @@ local function createGUI()
         end
     end))
 
-    -- Bhop + FOV + Fly + FPS/Velocity merged loop
     local bhopVel=nil; local lastJump=0; local curBhop=0
     local fpsFrame=UILib.newFrame(screenGui,{Name="FPSFrame",Size=UDim2.new(0,100,0,22),Position=UDim2.new(1,-110,0,8),BackgroundColor3=Theme.CardBg,BackgroundTransparency=0.2,BorderSizePixel=0,Visible=false}); UILib.corner(fpsFrame,5)
     local fpsLbl=UILib.newLabel(fpsFrame,{Size=UDim2.new(1,-8,1,0),Position=UDim2.new(0,4,0,0),Text="FPS: 0",TextColor3=Theme.TextAccent,TextSize=11,Font=Enum.Font.GothamBold,TextXAlignment=Enum.TextXAlignment.Left})
     local velLbl=UILib.newLabel(screenGui,{Name="VelLabel",Size=UDim2.new(0,160,0,18),Position=UDim2.new(0.5,40,0.5,26),Text="0.0 studs/s",TextColor3=Theme.CardHeaderBg,TextSize=12,Font=Enum.Font.GothamBold,TextStrokeTransparency=0.5,TextStrokeColor3=Color3.fromRGB(0,0,0),Visible=false})
-    -- FIX: FPS counter uses integer seconds boundary to avoid double-firing
     local lastFpsTick=math.floor(tick()); local fc=0; local cfps=0
 
     table.insert(allConnections,RunService.RenderStepped:Connect(function(dt)
@@ -1792,7 +1965,6 @@ local function createGUI()
         fpsFrame.Visible=Settings.Visuals.ShowFPS; velLbl.Visible=Settings.Visuals.ShowVelocity
         if Settings.Visuals.ShowFPS then
             fc=fc+1
-            -- FIX: integer boundary prevents double-fire on tick() drift
             local curSec=math.floor(tick())
             if curSec~=lastFpsTick then cfps=fc; fc=0; lastFpsTick=curSec end
             fpsLbl.Text="FPS: "..tostring(cfps)
@@ -1837,7 +2009,6 @@ local function createGUI()
     -- ================================================================
     table.insert(allConnections,UserInputService.InputBegan:Connect(function(input,gp)
         if isUnloading or _G.BinxixUnloaded or gp then return end
-        -- FIX: waitingForKey check is now the single shared flag — keybind rows update it
         if waitingForKey then return end
 
         if input.KeyCode==Settings.Keybinds.ToggleGUI then mainFrame.Visible=not mainFrame.Visible end
@@ -1915,19 +2086,16 @@ end)
 task.delay(8,function()
     local ok,res=pcall(function() return game:HttpGet(VERSION_URL) end)
     if ok and res then
-        -- Trim all whitespace/newlines so we get only the raw version string e.g. "003"
         local remoteRaw = res:match("^%s*(%d+)%s*$")
         local remoteNum = tonumber(remoteRaw)
         local localNum  = tonumber(SCRIPT_VERSION)
         if remoteNum and localNum then
             if remoteNum > localNum then
-                -- Zero-pad remote version to 3 digits to match display format
                 local remotePadded = string.format("%03d", remoteNum)
                 sendNotification("Update Available","v7."..remotePadded.." is out. You have v"..SCRIPT_VERSION_DISPLAY,8)
             elseif remoteNum == localNum then
                 sendNotification("Up to Date","v"..SCRIPT_VERSION_DISPLAY.." is current",3)
             end
-            -- If remoteNum < localNum (dev build) just stay silent
         end
     end
 end)
