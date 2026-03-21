@@ -235,40 +235,65 @@ jobs:
           fi
 
           # ══════════════════════════════════════════
-          # BUILD FIELDS
+          # BUILD + SEND EMBED
+          # python3 handles all JSON escaping so no
+          # shell variable expansion can break it.
           # ══════════════════════════════════════════
-          SAFE_MSG=$(echo "$MSG" | sed "s/[\"\`\\\\]//g")
-
           STAT_VAL="+${ADDED_LINES:-0} / -${REMOVED_LINES:-0} lines"
           FILES_VAL="${FILES_CHANGED:-source/}"
 
-          # ══════════════════════════════════════════
-          # SEND AAA EMBED
-          # ══════════════════════════════════════════
-          JSON="{
-            \"username\": \"Binxix Hub\",
-            \"avatar_url\": \"https://i.imgur.com/4M34hi2.png\",
-            \"embeds\": [{
-              \"title\": \"🚀 Binxix Hub $VER\",
-              \"url\": \"$COMMIT_URL\",
-              \"color\": 10181558,
-              \"description\": \"$AI_CHANGELOG\",
-              \"fields\": [
-                {\"name\": \"📝 Commit\",    \"value\": \"[$SHORT]($COMMIT_URL) — $SAFE_MSG\", \"inline\": false},
-                {\"name\": \"📊 Diff\",      \"value\": \"\`$STAT_VAL\`\",                    \"inline\": true},
-                {\"name\": \"👤 Author\",    \"value\": \"$AUTHOR\",                           \"inline\": true},
-                {\"name\": \"🌿 Branch\",    \"value\": \"\`$BRANCH\`\",                       \"inline\": true},
-                {\"name\": \"📁 Files\",     \"value\": \"\`$FILES_VAL\`\",                    \"inline\": false}
-              ],
-              \"footer\": {\"text\": \"$REPO • Powered by Claude AI\"},
-              \"timestamp\": \"$TIMESTAMP\"
-            }]
-          }"
+          # export everything python needs
+          export WEBHOOK VER COMMIT_URL SHORT MSG AUTHOR BRANCH REPO TIMESTAMP AI_CHANGELOG STAT_VAL FILES_VAL
+
+          python3 <<'PYEOF'
+import json, os
+
+webhook   = os.environ["WEBHOOK"]
+ver       = os.environ.get("VER",          "v7.???")
+commit_url= os.environ.get("COMMIT_URL",   "")
+short     = os.environ.get("SHORT",        "unknown")
+msg       = os.environ.get("MSG",          "")
+author    = os.environ.get("AUTHOR",       "unknown")
+branch    = os.environ.get("BRANCH",       "main")
+repo      = os.environ.get("REPO",         "")
+timestamp = os.environ.get("TIMESTAMP",    "")
+changelog = os.environ.get("AI_CHANGELOG", "📦 General update")
+stat_val  = os.environ.get("STAT_VAL",     "")
+files_val = os.environ.get("FILES_VAL",    "source/")
+
+# shell passes literal \n sequences — convert to real newlines
+changelog = changelog.replace("\\n", "\n").strip() or "📦 General update"
+
+payload = {
+  "username": "Binxix Hub",
+  "avatar_url": "https://i.imgur.com/4M34hi2.png",
+  "embeds": [{
+    "title": f"🚀 Binxix Hub {ver}",
+    "url": commit_url,
+    "color": 10181558,
+    "description": changelog,
+    "fields": [
+      {"name": "📝 Commit", "value": f"[`{short}`]({commit_url}) — {msg}", "inline": False},
+      {"name": "📊 Diff",   "value": f"`{stat_val}`",                       "inline": True},
+      {"name": "👤 Author", "value": author,                                "inline": True},
+      {"name": "🌿 Branch", "value": f"`{branch}`",                         "inline": True},
+      {"name": "📁 Files",  "value": f"`{files_val}`",                      "inline": False},
+    ],
+    "footer": {"text": f"{repo} • Powered by Claude AI"},
+    "timestamp": timestamp
+  }]
+}
+
+with open("/tmp/payload.json", "w") as f:
+  json.dump(payload, f)
+
+print(">> Payload written OK")
+PYEOF
 
           echo ">> Sending embed to Discord..."
           CODE=$(curl -s -o /tmp/dc.txt -w "%{http_code}" \
             -H "Content-Type: application/json" \
-            -d "$JSON" \
+            -d @/tmp/payload.json \
             "$WEBHOOK")
 
           echo "HTTP $CODE"
@@ -278,9 +303,14 @@ jobs:
             echo ">> ✅ Sent — $VER"
           else
             echo ">> Embed failed (HTTP $CODE) — trying plaintext fallback"
+            python3 -c "
+import json, os
+p = {'username':'Binxix Hub','content': os.environ.get('VER','v7') + ' pushed by ' + os.environ.get('AUTHOR','?') + ' — ' + os.environ.get('MSG','')}
+open('/tmp/fallback.json','w').write(json.dumps(p))
+"
             curl -fsSL \
               -H "Content-Type: application/json" \
-              -d "{\"username\":\"Binxix Hub\",\"content\":\"**$VER** pushed by $AUTHOR — $SAFE_MSG\"}" \
+              -d @/tmp/fallback.json \
               "$WEBHOOK" && echo ">> Fallback sent" || echo ">> Fallback also failed"
             exit 1
           fi
