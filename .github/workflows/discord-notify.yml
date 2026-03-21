@@ -19,28 +19,34 @@ jobs:
           fetch-depth: 2
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Notify Discord
+      - name: Run Notifier
         env:
-          WEBHOOK:    ${{ secrets.DISCORD_WEBHOOK }}
-          RAW_MSG:    ${{ github.event.head_commit.message }}
-          SHA:        ${{ github.sha }}
-          AUTHOR:     ${{ github.event.head_commit.author.name }}
-          COMMIT_URL: ${{ github.event.head_commit.url }}
-          REPO:       ${{ github.repository }}
-          TIMESTAMP:  ${{ github.event.head_commit.timestamp }}
+          WEBHOOK:         ${{ secrets.DISCORD_WEBHOOK }}
+          ANTHROPIC_KEY:   ${{ secrets.ANTHROPIC_API_KEY }}
+          RAW_MSG:         ${{ github.event.head_commit.message }}
+          SHA:             ${{ github.sha }}
+          AUTHOR:          ${{ github.event.head_commit.author.name }}
+          AUTHOR_EMAIL:    ${{ github.event.head_commit.author.email }}
+          COMMIT_URL:      ${{ github.event.head_commit.url }}
+          REPO:            ${{ github.repository }}
+          TIMESTAMP:       ${{ github.event.head_commit.timestamp }}
+          GITHUB_REF_NAME: ${{ github.ref_name }}
         run: |
           set -euo pipefail
 
-          # ────────────────────────────────────────
+          # ══════════════════════════════════════════
           # BASICS
-          # ────────────────────────────────────────
+          # ══════════════════════════════════════════
           MSG=$(echo "$RAW_MSG" | head -1)
           SHORT="${SHA:0:7}"
           PARENT=$(git rev-parse HEAD~1 2>/dev/null || echo "")
+          BRANCH="$GITHUB_REF_NAME"
 
-          echo "Commit: $MSG"
-          echo "SHA:    $SHORT"
-          echo "Author: $AUTHOR"
+          echo "━━━ Binxix Hub Notifier ━━━"
+          echo "Commit : $MSG"
+          echo "SHA    : $SHORT"
+          echo "Author : $AUTHOR"
+          echo "Branch : $BRANCH"
 
           # skip the auto bump commit this workflow itself makes
           if echo "$MSG" | grep -qF "[auto] version bump"; then
@@ -48,9 +54,9 @@ jobs:
             exit 0
           fi
 
-          # ────────────────────────────────────────
-          # FIND LUA FILE
-          # ────────────────────────────────────────
+          # ══════════════════════════════════════════
+          # FIND SOURCE LUA (unobfuscated)
+          # ══════════════════════════════════════════
           LUA=""
           for f in source/*.lua; do
             [ -f "$f" ] && LUA="$f" && break
@@ -62,21 +68,13 @@ jobs:
           fi
           echo "Lua file: $LUA"
 
-          # ────────────────────────────────────────
+          # ══════════════════════════════════════════
           # VALIDATE V7 HEADER
-          # Pull each line into a var then compare
-          # with double-quoted strings so no single
-          # quotes are needed anywhere in this file.
-          # ────────────────────────────────────────
+          # ══════════════════════════════════════════
           L1=$(sed -n "1p" "$LUA")
           L2=$(sed -n "2p" "$LUA")
           L3=$(sed -n "3p" "$LUA")
           L4=$(sed -n "4p" "$LUA")
-
-          echo "L1: $L1"
-          echo "L2: $L2"
-          echo "L3: $L3"
-          echo "L4: $L4"
 
           WANT_L2="local SCRIPT_VERSION_DISPLAY = \"7.\"..SCRIPT_VERSION"
           WANT_L3="local VERSION_URL = \"https://raw.githubusercontent.com/binx-ux/airhub-binxix-v7/main/VERSION\""
@@ -86,29 +84,11 @@ jobs:
           [ "$L2" = "$WANT_L2" ] || { echo ">> L2 mismatch — skipping"; exit 0; }
           [ "$L3" = "$WANT_L3" ] || { echo ">> L3 mismatch — skipping: $L3"; exit 0; }
           [ "$L4" = "$WANT_L4" ] || { echo ">> L4 mismatch — skipping"; exit 0; }
-
           echo ">> Header OK"
 
-          # ────────────────────────────────────────
-          # OFFLINE / MAINTENANCE MODE
-          # If commit message contains offline or
-          # updating, send a red status embed only.
-          # ────────────────────────────────────────
-          LOWER=$(echo "$MSG" | tr "[:upper:]" "[:lower:]")
-          if echo "$LOWER" | grep -qE "offline|updating"; then
-            echo ">> Sending offline embed"
-            SAFE=$(echo "$MSG" | sed "s/[\"\`\\\\]//g")
-            curl -fsSL \
-              -H "Content-Type: application/json" \
-              -d "{\"username\":\"Binxix Hub\",\"embeds\":[{\"title\":\"Binxix Hub is Offline\",\"color\":15158332,\"description\":\"An update is being pushed. Do not execute until you see the next update ping.\",\"fields\":[{\"name\":\"Message\",\"value\":\"$SAFE\",\"inline\":false},{\"name\":\"By\",\"value\":\"$AUTHOR\",\"inline\":true},{\"name\":\"Commit\",\"value\":\"$SHORT\",\"inline\":true}],\"footer\":{\"text\":\"$REPO\"},\"timestamp\":\"$TIMESTAMP\"}]}" \
-              "$WEBHOOK"
-            exit 0
-          fi
-
-          # ────────────────────────────────────────
+          # ══════════════════════════════════════════
           # VERSION BUMP
-          # Read VERSION file, increment, write back
-          # ────────────────────────────────────────
+          # ══════════════════════════════════════════
           if [ -f VERSION ]; then
             NUM=$(cat VERSION | tr -d "[:space:]")
           else
@@ -126,47 +106,166 @@ jobs:
           git push || true
           echo ">> Version: $VER"
 
-          # ────────────────────────────────────────
-          # DIFF SUMMARY
-          # ────────────────────────────────────────
-          STATS=""
-          DETAILS=""
+          # ══════════════════════════════════════════
+          # OFFLINE / MAINTENANCE MODE
+          # ══════════════════════════════════════════
+          LOWER=$(echo "$MSG" | tr "[:upper:]" "[:lower:]")
+          if echo "$LOWER" | grep -qE "offline|updating|maintenance|hotfix"; then
+            echo ">> Sending offline/maintenance embed"
+            SAFE=$(echo "$MSG" | sed "s/[\"\`\\\\]//g")
 
-          if [ -n "$PARENT" ] && git diff --name-only "$PARENT" HEAD | grep -qF "$LUA"; then
-            INS=$(git diff --numstat "$PARENT" HEAD -- "$LUA" | awk "{print \$1}")
-            DEL=$(git diff --numstat "$PARENT" HEAD -- "$LUA" | awk "{print \$2}")
-            STATS="+${INS:-0} / -${DEL:-0} lines"
+            # pick color and title based on keyword
+            if echo "$LOWER" | grep -qE "offline|maintenance"; then
+              COLOR=15158332
+              ETITLE="⚠️ Binxix Hub — Offline"
+              EDESC="Script is temporarily offline. Do not execute until the next update ping."
+            else
+              COLOR=16776960
+              ETITLE="🔧 Binxix Hub — Hotfix Incoming"
+              EDESC="A hotfix is being applied right now. Stand by."
+            fi
 
-            ADDED=$(git diff "$PARENT" HEAD -- "$LUA" | grep "^+" | grep -v "^+++" || true)
-
-            FUNCS=$(echo "$ADDED" | grep -oP "function \K\w+" 2>/dev/null | sort -u | head -6 | tr "\n" " " || true)
-            [ -n "$FUNCS" ] && DETAILS="${DETAILS}Functions: $FUNCS\n"
-
-            GAMES=$(echo "$ADDED" | grep -oP "name=\"\K[^\"]+" 2>/dev/null | head -4 | tr "\n" ", " || true)
-            [ -n "$GAMES" ] && DETAILS="${DETAILS}Games: $GAMES\n"
+            curl -fsSL \
+              -H "Content-Type: application/json" \
+              -d "{\"username\":\"Binxix Hub\",\"avatar_url\":\"https://i.imgur.com/4M34hi2.png\",\"embeds\":[{\"title\":\"$ETITLE\",\"color\":$COLOR,\"description\":\"$EDESC\",\"fields\":[{\"name\":\"📝 Message\",\"value\":\"$SAFE\",\"inline\":false},{\"name\":\"👤 By\",\"value\":\"$AUTHOR\",\"inline\":true},{\"name\":\"🔖 Commit\",\"value\":\"\`$SHORT\`\",\"inline\":true},{\"name\":\"🌿 Branch\",\"value\":\"\`$BRANCH\`\",\"inline\":true}],\"footer\":{\"text\":\"$REPO • Binxix Hub Notifier\"},\"timestamp\":\"$TIMESTAMP\"}]}" \
+              "$WEBHOOK"
+            exit 0
           fi
 
-          # ────────────────────────────────────────
-          # BUILD DESCRIPTION
-          # ────────────────────────────────────────
+          # ══════════════════════════════════════════
+          # EXTRACT DIFF (source lua only)
+          # ══════════════════════════════════════════
+          DIFF_STAT=""
+          DIFF_PATCH=""
+          ADDED_LINES=""
+          REMOVED_LINES=""
+          FILES_CHANGED=""
+
+          if [ -n "$PARENT" ]; then
+            DIFF_STAT=$(git diff --stat "$PARENT" HEAD -- "$LUA" 2>/dev/null || true)
+            DIFF_PATCH=$(git diff "$PARENT" HEAD -- "$LUA" 2>/dev/null | head -600 || true)
+            ADDED_LINES=$(echo "$DIFF_PATCH" | grep "^+" | grep -v "^+++" | wc -l | tr -d " ")
+            REMOVED_LINES=$(echo "$DIFF_PATCH" | grep "^-" | grep -v "^---" | wc -l | tr -d " ")
+            FILES_CHANGED=$(git diff --name-only "$PARENT" HEAD -- "source/" 2>/dev/null | tr "\n" ", " | sed "s/, $//" || true)
+          fi
+
+          echo "Lines added:   $ADDED_LINES"
+          echo "Lines removed: $REMOVED_LINES"
+
+          # ══════════════════════════════════════════
+          # AI CHANGELOG via Claude API
+          # Reads the actual diff and generates a
+          # real human-readable AAA-style changelog
+          # ══════════════════════════════════════════
+          AI_CHANGELOG=""
+
+          if [ -n "$ANTHROPIC_KEY" ] && [ -n "$DIFF_PATCH" ]; then
+            echo ">> Calling Claude API for changelog..."
+
+            # escape the diff for JSON — replace special chars
+            SAFE_DIFF=$(echo "$DIFF_PATCH" | head -400 | python3 -c "
+          import sys, json
+          raw = sys.stdin.read()
+          print(json.dumps(raw))
+          " 2>/dev/null || echo "\"(diff unavailable)\"")
+
+            SAFE_COMMIT_MSG=$(echo "$MSG" | python3 -c "
+          import sys, json
+          raw = sys.stdin.read().strip()
+          print(json.dumps(raw))
+          " 2>/dev/null || echo "\"$MSG\"")
+
+            AI_RESPONSE=$(curl -s \
+              -H "Content-Type: application/json" \
+              -H "x-api-key: $ANTHROPIC_KEY" \
+              -H "anthropic-version: 2023-06-01" \
+              -d "{
+                \"model\": \"claude-opus-4-5\",
+                \"max_tokens\": 400,
+                \"system\": \"You are a changelog writer for Binxix Hub, a Roblox exploit/cheat script. Given a git diff of the Lua source file, write a short AAA-game-style changelog. Use bullet points with emojis. Categories: Added, Changed, Fixed, Removed. Be specific — mention actual function names, feature names, game names from the diff. Keep it under 350 chars total. Do NOT include any markdown code blocks or backticks. Output only the bullet list, nothing else.\",
+                \"messages\": [{
+                  \"role\": \"user\",
+                  \"content\": \"Commit message: $SAFE_COMMIT_MSG\n\nDiff:\n$SAFE_DIFF\"
+                }]
+              }" \
+              "https://api.anthropic.com/v1/messages" 2>/dev/null || true)
+
+            AI_CHANGELOG=$(echo "$AI_RESPONSE" | python3 -c "
+          import sys, json
+          try:
+            d = json.load(sys.stdin)
+            txt = d['content'][0]['text'].strip()
+            # strip any backtick blocks just in case
+            txt = txt.replace('\`', '')
+            # escape for shell/JSON embed
+            txt = txt.replace('\\\\', '\\\\\\\\').replace('\"', '\\\\\"')
+            # newlines to literal \n for JSON embed
+            txt = txt.replace('\n', '\\\\n')
+            print(txt[:800])
+          except Exception as e:
+            print('')
+          " 2>/dev/null || true)
+
+            echo "AI Changelog: $AI_CHANGELOG"
+          fi
+
+          # ══════════════════════════════════════════
+          # FALLBACK CHANGELOG (no AI / AI failed)
+          # ══════════════════════════════════════════
+          if [ -z "$AI_CHANGELOG" ]; then
+            echo ">> Using fallback diff summary"
+
+            NEW_FUNCS=$(echo "$DIFF_PATCH" | grep "^+" | grep -oP "(?<=function )\w+" 2>/dev/null | sort -u | head -5 | tr "\n" ", " | sed "s/, $//" || true)
+            REM_FUNCS=$(echo "$DIFF_PATCH" | grep "^-" | grep -oP "(?<=function )\w+" 2>/dev/null | sort -u | head -3 | tr "\n" ", " | sed "s/, $//" || true)
+            NEW_GAMES=$(echo "$DIFF_PATCH" | grep "^+" | grep -oP "(?<=name=\")[^\"]+" 2>/dev/null | head -4 | tr "\n" ", " | sed "s/, $//" || true)
+            FIXES=$(echo "$DIFF_PATCH" | grep "^+" | grep -i "fix\|patch\|bug\|crash\|nil\|error" | head -3 | sed "s/^+//" | tr "\n" " " | cut -c1-120 || true)
+
+            PARTS=""
+            [ -n "$NEW_FUNCS" ] && PARTS="$PARTS✅ Added: $NEW_FUNCS\n"
+            [ -n "$REM_FUNCS" ] && PARTS="$PARTS🗑️ Removed: $REM_FUNCS\n"
+            [ -n "$NEW_GAMES" ] && PARTS="$PARTS🎮 Games: $NEW_GAMES\n"
+            [ -n "$FIXES"     ] && PARTS="$PARTS🔧 Fixes detected in diff\n"
+            [ -z "$PARTS"     ] && PARTS="📦 General update\n"
+
+            AI_CHANGELOG=$(echo -e "$PARTS" | sed "s/[\"\`\\\\]//g" | python3 -c "
+          import sys
+          txt = sys.stdin.read().strip().replace('\n', '\\\\n')
+          print(txt[:600])
+          " 2>/dev/null || echo "📦 General update")
+          fi
+
+          # ══════════════════════════════════════════
+          # BUILD FIELDS
+          # ══════════════════════════════════════════
           SAFE_MSG=$(echo "$MSG" | sed "s/[\"\`\\\\]//g")
-          DESC="$SAFE_MSG"
-          [ -n "$STATS"   ] && DESC="$DESC\n$STATS"
-          [ -n "$DETAILS" ] && DESC="$DESC\n$DETAILS"
-          [ -z "$DETAILS" ] && DESC="$DESC\nGeneral update"
 
-          if [ "${#DESC}" -gt 3500 ]; then
-            DESC="${DESC:0:3450}\n...truncated"
-          fi
+          STAT_VAL="+${ADDED_LINES:-0} / -${REMOVED_LINES:-0} lines"
+          FILES_VAL="${FILES_CHANGED:-source/}"
 
-          # ────────────────────────────────────────
-          # SEND EMBED
-          # JSON is one line — no heredocs needed,
-          # no single quotes, no YAML conflicts.
-          # ────────────────────────────────────────
-          JSON="{\"username\":\"Binxix Hub\",\"embeds\":[{\"title\":\"Binxix Hub $VER\",\"url\":\"$COMMIT_URL\",\"color\":10181558,\"description\":\"$DESC\",\"fields\":[{\"name\":\"Version\",\"value\":\"$VER\",\"inline\":true},{\"name\":\"Commit\",\"value\":\"[$SHORT]($COMMIT_URL)\",\"inline\":true},{\"name\":\"By\",\"value\":\"$AUTHOR\",\"inline\":true}],\"footer\":{\"text\":\"$REPO\"},\"timestamp\":\"$TIMESTAMP\"}]}"
+          # ══════════════════════════════════════════
+          # SEND AAA EMBED
+          # ══════════════════════════════════════════
+          JSON="{
+            \"username\": \"Binxix Hub\",
+            \"avatar_url\": \"https://i.imgur.com/4M34hi2.png\",
+            \"embeds\": [{
+              \"title\": \"🚀 Binxix Hub $VER\",
+              \"url\": \"$COMMIT_URL\",
+              \"color\": 10181558,
+              \"description\": \"$AI_CHANGELOG\",
+              \"fields\": [
+                {\"name\": \"📝 Commit\",    \"value\": \"[$SHORT]($COMMIT_URL) — $SAFE_MSG\", \"inline\": false},
+                {\"name\": \"📊 Diff\",      \"value\": \"\`$STAT_VAL\`\",                    \"inline\": true},
+                {\"name\": \"👤 Author\",    \"value\": \"$AUTHOR\",                           \"inline\": true},
+                {\"name\": \"🌿 Branch\",    \"value\": \"\`$BRANCH\`\",                       \"inline\": true},
+                {\"name\": \"📁 Files\",     \"value\": \"\`$FILES_VAL\`\",                    \"inline\": false}
+              ],
+              \"footer\": {\"text\": \"$REPO • Powered by Claude AI\"},
+              \"timestamp\": \"$TIMESTAMP\"
+            }]
+          }"
 
-          echo ">> Sending to Discord..."
+          echo ">> Sending embed to Discord..."
           CODE=$(curl -s -o /tmp/dc.txt -w "%{http_code}" \
             -H "Content-Type: application/json" \
             -d "$JSON" \
@@ -176,11 +275,12 @@ jobs:
           cat /tmp/dc.txt
 
           if [ "$CODE" = "204" ] || [ "$CODE" = "200" ]; then
-            echo ">> Sent — $VER"
+            echo ">> ✅ Sent — $VER"
           else
-            echo ">> Embed failed, trying plaintext fallback"
+            echo ">> Embed failed (HTTP $CODE) — trying plaintext fallback"
             curl -fsSL \
               -H "Content-Type: application/json" \
-              -d "{\"username\":\"Binxix Hub\",\"content\":\"$VER pushed by $AUTHOR — $SAFE_MSG\"}" \
+              -d "{\"username\":\"Binxix Hub\",\"content\":\"**$VER** pushed by $AUTHOR — $SAFE_MSG\"}" \
               "$WEBHOOK" && echo ">> Fallback sent" || echo ">> Fallback also failed"
+            exit 1
           fi
