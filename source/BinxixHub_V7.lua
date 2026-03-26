@@ -1,4 +1,4 @@
-local SCRIPT_VERSION = "005"
+local SCRIPT_VERSION = "006"
 local SCRIPT_VERSION_DISPLAY = "7."..SCRIPT_VERSION
 local VERSION_URL = "https://raw.githubusercontent.com/binx-ux/binxix-hub-v7/main/VERSION"
 local INTEGRITY_HASH = "binxix_v7_official"
@@ -335,8 +335,7 @@ if currentGameData.loadScript then
     UILib.newFrame(cGui,{Size=UDim2.new(1,0,1,0),BackgroundColor3=Color3.fromRGB(12,8,18),BackgroundTransparency=0.6,BorderSizePixel=0,ZIndex=100})
 
     local cf = UILib.newFrame(cGui,{Size=UDim2.new(0,380,0,220),Position=UDim2.new(0.5,-190,0.5,-110),BackgroundColor3=Color3.fromRGB(16,14,22),BorderSizePixel=0,ZIndex=101})
-    UILib.corner(cf,12)
-    UILib.stroke(cf,Color3.fromRGB(120,60,180),1.5)
+    UILib.corner(cf,12); UILib.stroke(cf,Color3.fromRGB(120,60,180),1.5)
 
     local accentBar = UILib.newFrame(cf,{Size=UDim2.new(1,0,0,3),Position=UDim2.new(0,0,0,0),BackgroundColor3=Color3.fromRGB(180,80,255),BorderSizePixel=0,ZIndex=102})
     UILib.corner(accentBar,12)
@@ -348,20 +347,14 @@ if currentGameData.loadScript then
     UILib.newFrame(cf,{Size=UDim2.new(1,-32,0,1),Position=UDim2.new(0,16,0,44),BackgroundColor3=Color3.fromRGB(50,35,70),BorderSizePixel=0,ZIndex=102})
     UILib.newLabel(cf,{Text=currentGameData.name.." detected. Choose a script to load:",Size=UDim2.new(1,-32,0,18),Position=UDim2.new(0,16,0,54),TextColor3=Color3.fromRGB(160,145,180),TextSize=11,Font=Enum.Font.Gotham,ZIndex=102,TextXAlignment=Enum.TextXAlignment.Left})
 
-    local extBtn = UILib.newButton(cf,{
-        Size=UDim2.new(0,164,0,56),Position=UDim2.new(0,16,0,82),
-        BackgroundColor3=Color3.fromRGB(22,44,28),BorderSizePixel=0,Text="",ZIndex=102
-    },function() choiceMade=true; loadExternal=true end)
+    local extBtn = UILib.newButton(cf,{Size=UDim2.new(0,164,0,56),Position=UDim2.new(0,16,0,82),BackgroundColor3=Color3.fromRGB(22,44,28),BorderSizePixel=0,Text="",ZIndex=102},function() choiceMade=true; loadExternal=true end)
     UILib.corner(extBtn,8); UILib.stroke(extBtn,Color3.fromRGB(50,160,80),1.2)
     UILib.newLabel(extBtn,{Text=currentGameData.scriptName or "External Script",Size=UDim2.new(1,-8,0,18),Position=UDim2.new(0,4,0,8),TextColor3=Color3.fromRGB(80,230,120),TextSize=13,Font=Enum.Font.GothamBold,ZIndex=103,TextXAlignment=Enum.TextXAlignment.Center})
     UILib.newLabel(extBtn,{Text="Recommended",Size=UDim2.new(1,-8,0,14),Position=UDim2.new(0,4,0,28),TextColor3=Color3.fromRGB(50,150,75),TextSize=9,Font=Enum.Font.Gotham,ZIndex=103,TextXAlignment=Enum.TextXAlignment.Center})
     extBtn.MouseEnter:Connect(function() extBtn.BackgroundColor3=Color3.fromRGB(28,58,35) end)
     extBtn.MouseLeave:Connect(function() extBtn.BackgroundColor3=Color3.fromRGB(22,44,28) end)
 
-    local hubBtn = UILib.newButton(cf,{
-        Size=UDim2.new(0,164,0,56),Position=UDim2.new(0,200,0,82),
-        BackgroundColor3=Color3.fromRGB(35,18,55),BorderSizePixel=0,Text="",ZIndex=102
-    },function() choiceMade=true; loadExternal=false end)
+    local hubBtn = UILib.newButton(cf,{Size=UDim2.new(0,164,0,56),Position=UDim2.new(0,200,0,82),BackgroundColor3=Color3.fromRGB(35,18,55),BorderSizePixel=0,Text="",ZIndex=102},function() choiceMade=true; loadExternal=false end)
     UILib.corner(hubBtn,8); UILib.stroke(hubBtn,Color3.fromRGB(140,60,200),1.2)
     UILib.newLabel(hubBtn,{Text="Binxix Hub V7",Size=UDim2.new(1,-8,0,18),Position=UDim2.new(0,4,0,8),TextColor3=Color3.fromRGB(200,130,255),TextSize=13,Font=Enum.Font.GothamBold,ZIndex=103,TextXAlignment=Enum.TextXAlignment.Center})
     UILib.newLabel(hubBtn,{Text="Full feature hub",Size=UDim2.new(1,-8,0,14),Position=UDim2.new(0,4,0,28),TextColor3=Color3.fromRGB(120,70,170),TextSize=9,Font=Enum.Font.Gotham,ZIndex=103,TextXAlignment=Enum.TextXAlignment.Center})
@@ -464,8 +457,114 @@ local targetList           = {}
 local targetIndex          = 1
 local waitingForKey        = false
 
-local SKEL_R15={{"Head","UpperTorso"},{"UpperTorso","LowerTorso"},{"UpperTorso","LeftUpperArm"},{"LeftUpperArm","LeftLowerArm"},{"LeftLowerArm","LeftHand"},{"UpperTorso","RightUpperArm"},{"RightUpperArm","RightLowerArm"},{"RightLowerArm","RightHand"},{"LowerTorso","LeftUpperLeg"},{"LeftUpperLeg","LeftLowerLeg"},{"LeftLowerLeg","LeftFoot"},{"LowerTorso","RightUpperLeg"},{"RightUpperLeg","RightLowerLeg"},{"RightLowerLeg","RightFoot"}}
-local SKEL_R6={{"Head","Torso"},{"Torso","Left Arm"},{"Torso","Right Arm"},{"Torso","Left Leg"},{"Torso","Right Leg"}}
+-- ====================================================================
+-- ADAPTIVE RIG DETECTION ENGINE
+-- ====================================================================
+local rigCache = {}
+
+local function clearRigCache(userId) rigCache[userId] = nil end
+
+-- Detects rig type, root, health source, velocity source, lock part,
+-- and skeleton bones from whatever character structure the game uses
+local function detectRig(character)
+    if not character then return nil end
+    local data = {}
+
+    -- Root part: standard HRP first, then fallbacks for custom rigs
+    data.root = character:FindFirstChild("HumanoidRootPart")
+        or character:FindFirstChild("Torso")
+        or character:FindFirstChild("UpperTorso")
+        or character:FindFirstChildWhichIsA("BasePart")
+
+    -- Humanoid / health
+    data.humanoid = character:FindFirstChildOfClass("Humanoid")
+    local hv = character:FindFirstChild("Health")
+    if data.humanoid then
+        data.getHealth    = function() return data.humanoid.Health end
+        data.getMaxHealth = function() return data.humanoid.MaxHealth end
+        data.isAlive      = function() return data.humanoid.Health > 0 end
+    elseif hv and hv:IsA("ValueBase") then
+        data.getHealth    = function() return hv.Value end
+        data.getMaxHealth = function() return 100 end
+        data.isAlive      = function() return hv.Value > 0 end
+    else
+        data.getHealth    = function() return 100 end
+        data.getMaxHealth = function() return 100 end
+        data.isAlive      = function() return character.Parent ~= nil end
+    end
+
+    -- Rig type
+    if character:FindFirstChild("UpperTorso") then
+        data.rigType = "R15"
+    elseif character:FindFirstChild("Torso") then
+        data.rigType = "R6"
+    else
+        data.rigType = "Custom"
+    end
+
+    -- Best lock part: respect Settings.Aimbot.LockPart, fall back gracefully
+    local fallbacks = {Settings.Aimbot.LockPart,"Head","HumanoidRootPart","UpperTorso","Torso","hrp","Root"}
+    data.lockPart = nil
+    for _,name in ipairs(fallbacks) do
+        local p = character:FindFirstChild(name)
+        if p and p:IsA("BasePart") then data.lockPart = p; break end
+    end
+    if not data.lockPart then data.lockPart = character:FindFirstChildWhichIsA("BasePart") end
+
+    -- Velocity source for prediction
+    if data.root then
+        data.getVelocity = function()
+            local ok,vel = pcall(function() return data.root.AssemblyLinearVelocity end)
+            if ok and vel.Magnitude > 0 then return vel end
+            local ok2,vel2 = pcall(function() return data.root.Velocity end)
+            if ok2 then return vel2 end
+            return Vector3.new(0,0,0)
+        end
+    else
+        data.getVelocity = function() return Vector3.new(0,0,0) end
+    end
+
+    -- Skeleton bone pairs adapted to rig type
+    if data.rigType == "R15" then
+        data.skelBones = {
+            {"Head","UpperTorso"},{"UpperTorso","LowerTorso"},
+            {"UpperTorso","LeftUpperArm"},{"LeftUpperArm","LeftLowerArm"},{"LeftLowerArm","LeftHand"},
+            {"UpperTorso","RightUpperArm"},{"RightUpperArm","RightLowerArm"},{"RightLowerArm","RightHand"},
+            {"LowerTorso","LeftUpperLeg"},{"LeftUpperLeg","LeftLowerLeg"},{"LeftLowerLeg","LeftFoot"},
+            {"LowerTorso","RightUpperLeg"},{"RightUpperLeg","RightLowerLeg"},{"RightLowerLeg","RightFoot"},
+        }
+    elseif data.rigType == "R6" then
+        data.skelBones = {
+            {"Head","Torso"},{"Torso","Left Arm"},{"Torso","Right Arm"},
+            {"Torso","Left Leg"},{"Torso","Right Leg"},
+        }
+    else
+        -- Custom rig: connect every BasePart back to root
+        data.skelBones = {}
+        if data.root then
+            for _,part in ipairs(character:GetChildren()) do
+                if part:IsA("BasePart") and part ~= data.root then
+                    table.insert(data.skelBones, {data.root.Name, part.Name})
+                end
+            end
+        end
+    end
+
+    return data
+end
+
+-- Cached accessor — auto-invalidates on respawn
+local function getRig(target)
+    local uid = target.UserId
+    local char = target.Character
+    if not char then rigCache[uid] = nil; return nil end
+    if rigCache[uid] and rigCache[uid]._char ~= char then rigCache[uid] = nil end
+    if not rigCache[uid] then
+        local rd = detectRig(char)
+        if rd then rd._char = char; rigCache[uid] = rd end
+    end
+    return rigCache[uid]
+end
 
 local notifScreenGui = nil
 local function sendNotification(title,message,duration)
@@ -504,43 +603,70 @@ local function isValidTarget(admin,target) if target==admin then return false en
 local _losRP = RaycastParams.new()
 _losRP.FilterType = Enum.RaycastFilterType.Exclude
 local _losCachedChar = nil
+
+-- Adaptive LOS: uses detected root instead of hardcoded HumanoidRootPart
 local function hasLOS(admin,target)
-    local ac=admin.Character; local tc=target.Character; if not ac or not tc then return false end
-    local ah=ac:FindFirstChild("Head"); local th=tc:FindFirstChild("HumanoidRootPart"); if not ah or not th then return false end
+    local ac=admin.Character; if not ac then return false end
+    local ah=ac:FindFirstChild("Head") or ac:FindFirstChildWhichIsA("BasePart"); if not ah then return false end
+    local rd=getRig(target); if not rd or not rd.root then return false end
     if ac ~= _losCachedChar then _losCachedChar=ac; _losRP.FilterDescendantsInstances={ac} end
-    local result=Workspace:Raycast(ah.Position,(th.Position-ah.Position),_losRP)
+    local result=Workspace:Raycast(ah.Position,(rd.root.Position-ah.Position),_losRP)
     if result==nil then return true end
-    local p=result.Instance; while p do if p==tc then return true end; p=p.Parent end
+    local p=result.Instance; while p do if p==target.Character then return true end; p=p.Parent end
     return false
 end
+
+-- Adaptive FOV check: uses detected lock part
 local function isInFOV(target,fovRadius)
     local cam=Workspace.CurrentCamera; if not cam then return false end
-    local tc=target.Character; if not tc then return false end
-    local part=tc:FindFirstChild(Settings.Aimbot.LockPart) or tc:FindFirstChild("Head") or tc:FindFirstChild("HumanoidRootPart"); if not part then return false end
-    local sp,on=cam:WorldToViewportPoint(part.Position); if not on or sp.Z<0 then return false end
+    local rd=getRig(target); if not rd or not rd.lockPart then return false end
+    local sp,on=cam:WorldToViewportPoint(rd.lockPart.Position); if not on or sp.Z<0 then return false end
     local sc=cam.ViewportSize/2; return (Vector2.new(sp.X,sp.Y)-sc).Magnitude<=fovRadius
 end
+
 local function getESPColor(dist) if dist<30 then return Theme.ESP_Close elseif dist<75 then return Theme.ESP_Medium elseif dist<150 then return Theme.ESP_Far else return Theme.ESP_VeryFar end end
 local function getHealthColor(pct) if pct>0.6 then return Color3.fromRGB(80,255,80) elseif pct>0.3 then return Color3.fromRGB(255,200,50) else return Color3.fromRGB(255,60,60) end end
 
 -- ====================================================================
--- cloudHACK
+-- cloudHACK — adaptive target building
 -- ====================================================================
 local function buildTargetList()
     local myChar=player.Character; if not myChar then return end
-    local myHRP=myChar:FindFirstChild("HumanoidRootPart"); if not myHRP then return end
+    local myRoot=myChar:FindFirstChild("HumanoidRootPart") or myChar:FindFirstChildWhichIsA("BasePart"); if not myRoot then return end
     local cam=Workspace.CurrentCamera; if not cam then return end
     targetList={}
     for _,t in ipairs(Players:GetPlayers()) do
         if isValidTarget(player,t) then
-            local tc=t.Character; if tc then
-                local th=tc:FindFirstChild("HumanoidRootPart"); local hum=tc:FindFirstChild("Humanoid")
-                if th and hum and hum.Health>0 then
-                    local dist=(myHRP.Position-th.Position).Magnitude
-                    if dist<=Settings.Aimbot.MaxDistance then
-                        if not Settings.Aimbot.RequireLOS or hasLOS(player,t) then
-                            local part=tc:FindFirstChild(Settings.Aimbot.LockPart) or tc:FindFirstChild("Head") or th
-                            if part then local sp,on=cam:WorldToViewportPoint(part.Position); if on and sp.Z>0 then local sc=cam.ViewportSize/2; local d=(Vector2.new(sp.X,sp.Y)-sc).Magnitude; if d<=Settings.Aimbot.FOVRadius then table.insert(targetList,{player=t,dist=dist,screenDist=d}) end end end
+            local rd=getRig(t)
+            -- rd.isAlive() handles custom health sources; falls back gracefully if no rig yet
+            if rd and rd.root and rd.isAlive() then
+                local dist=(myRoot.Position-rd.root.Position).Magnitude
+                if dist<=Settings.Aimbot.MaxDistance then
+                    if not Settings.Aimbot.RequireLOS or hasLOS(player,t) then
+                        local lp=rd.lockPart
+                        if lp then
+                            local sp,on=cam:WorldToViewportPoint(lp.Position)
+                            if on and sp.Z>0 then
+                                local sc=cam.ViewportSize/2
+                                local d=(Vector2.new(sp.X,sp.Y)-sc).Magnitude
+                                if d<=Settings.Aimbot.FOVRadius then
+                                    table.insert(targetList,{player=t,dist=dist,screenDist=d})
+                                end
+                            end
+                        end
+                    end
+                end
+            else
+                -- Rig not cached yet (player just spawned), try standard fallback
+                local tc=t.Character; if tc then
+                    local th=tc:FindFirstChild("HumanoidRootPart"); local hum=tc:FindFirstChild("Humanoid")
+                    if th and hum and hum.Health>0 then
+                        local dist=(myRoot.Position-th.Position).Magnitude
+                        if dist<=Settings.Aimbot.MaxDistance then
+                            if not Settings.Aimbot.RequireLOS or hasLOS(player,t) then
+                                local part=tc:FindFirstChild(Settings.Aimbot.LockPart) or tc:FindFirstChild("Head") or th
+                                if part then local sp,on=cam:WorldToViewportPoint(part.Position); if on and sp.Z>0 then local sc=cam.ViewportSize/2; local d=(Vector2.new(sp.X,sp.Y)-sc).Magnitude; if d<=Settings.Aimbot.FOVRadius then table.insert(targetList,{player=t,dist=dist,screenDist=d}) end end end
+                            end
                         end
                     end
                 end
@@ -549,28 +675,44 @@ local function buildTargetList()
     end
     table.sort(targetList,function(a,b) return a.screenDist<b.screenDist end)
 end
+
 local function cycleTarget()
     buildTargetList(); if #targetList==0 then currentTarget=nil; return end
     targetIndex=targetIndex+1; if targetIndex>#targetList then targetIndex=1 end
     currentTarget=targetList[targetIndex].player; sendNotification("Target","Locked: "..currentTarget.DisplayName,1.5)
 end
 local function getNearestTarget() buildTargetList(); if #targetList==0 then return nil end; targetIndex=1; return targetList[1].player end
-local function getPredictedPos(tc)
-    local part=tc:FindFirstChild(Settings.Aimbot.LockPart) or tc:FindFirstChild("Head") or tc:FindFirstChild("HumanoidRootPart"); if not part then return nil end
-    local pos=part.Position
-    if Settings.Aimbot.Prediction then local hrp=tc:FindFirstChild("HumanoidRootPart"); if hrp then pos=pos+(hrp.AssemblyLinearVelocity*Settings.Aimbot.PredictionAmount) end end
+
+-- Adaptive predicted position: uses detected lock part + velocity source
+local function getPredictedPos(target)
+    local rd=getRig(target); if not rd or not rd.lockPart then return nil end
+    local pos=rd.lockPart.Position
+    if Settings.Aimbot.Prediction then
+        pos=pos+(rd.getVelocity()*Settings.Aimbot.PredictionAmount)
+    end
     return pos
 end
+
 local function startAimbotTracking()
     if rightMouseTracking then rightMouseTracking:Disconnect(); rightMouseTracking=nil end
     isTracking=true; currentTarget=getNearestTarget()
     rightMouseTracking=RunService.RenderStepped:Connect(function()
         if isUnloading or _G[UNLOADED_KEY] or not Settings.Aimbot.Enabled or not isTracking then return end
         local cam=Workspace.CurrentCamera; if not cam then return end
-        if not currentTarget or not currentTarget.Character then currentTarget=getNearestTarget()
-        else local tc=currentTarget.Character; if tc then local h=tc:FindFirstChild("Humanoid"); if not h or h.Health<=0 then currentTarget=getNearestTarget() elseif not isInFOV(currentTarget,Settings.Aimbot.FOVRadius) then currentTarget=getNearestTarget() elseif Settings.Aimbot.RequireLOS and not hasLOS(player,currentTarget) then currentTarget=getNearestTarget() end else currentTarget=getNearestTarget() end end
+        -- Re-acquire if current target invalid
+        local needNew=false
+        if not currentTarget or not currentTarget.Character then
+            needNew=true
+        else
+            local rd=getRig(currentTarget)
+            if not rd or not rd.isAlive() then needNew=true
+            elseif not isInFOV(currentTarget,Settings.Aimbot.FOVRadius) then needNew=true
+            elseif Settings.Aimbot.RequireLOS and not hasLOS(player,currentTarget) then needNew=true end
+        end
+        if needNew then currentTarget=getNearestTarget() end
+
         if currentTarget and currentTarget.Character then
-            local pos=getPredictedPos(currentTarget.Character)
+            local pos=getPredictedPos(currentTarget)
             if pos then
                 local cp=cam.CFrame.Position; local desired=CFrame.lookAt(cp,pos)
                 local pitch=math.asin(math.clamp(desired.LookVector.Y,-1,1)); local maxP=math.rad(80)
@@ -584,7 +726,7 @@ end
 local function stopAimbotTracking() isTracking=false; currentTarget=nil; if rightMouseTracking then rightMouseTracking:Disconnect(); rightMouseTracking=nil end end
 
 -- ====================================================================
--- binxix (ESP uses randomized instance tags)
+-- binxix — ESP (adaptive adornee + health)
 -- ====================================================================
 local function createESP(target)
     if target==player or espObjects[target.UserId] then return end
@@ -629,7 +771,7 @@ local function applyAllGunMods() if not weaponCacheBuilt then buildWeaponCache()
 local function restoreGunMod(cat) for obj,val in pairs(gunOrig[cat]) do pcall(function() if obj and obj.Parent then obj.Value=val end end) end; gunOrig[cat]={} end
 
 -- ====================================================================
--- xxCMAxx (fly uses randomized instance names)
+-- xxCMAxx
 -- ====================================================================
 local function startFly()
     local char=player.Character; if not char then return end
@@ -673,11 +815,7 @@ local function startAutoTPLoop()
         autoTPTarget=nil; autoTPRunning=false
     end)
 end
-local function stopAutoTPLoop()
-    Settings.Misc.AutoTPLoop=false
-    autoTPRunning=false
-    autoTPTarget=nil
-end
+local function stopAutoTPLoop() Settings.Misc.AutoTPLoop=false; autoTPRunning=false; autoTPTarget=nil end
 
 -- ====================================================================
 -- 3895nfk93
@@ -786,7 +924,7 @@ local function createGUI()
         if not espOn and not radarOn then return end
 
         local myChar=player.Character; if not myChar then return end
-        local myHRP=myChar:FindFirstChild("HumanoidRootPart"); if not myHRP then return end
+        local myHRP=myChar:FindFirstChild("HumanoidRootPart") or myChar:FindFirstChildWhichIsA("BasePart"); if not myHRP then return end
         local cam=Workspace.CurrentCamera; if not cam then return end
         local camCF=cam.CFrame
         local ss=cam.ViewportSize
@@ -821,10 +959,28 @@ local function createGUI()
             if target==player then continue end
 
             local tc=target.Character; if not tc then continue end
-            local th=tc:FindFirstChild("HumanoidRootPart"); if not th then continue end
+
+            -- Adaptive: get rig data; fall back to standard parts if not ready
+            local rd=getRig(target)
+            local tRoot=rd and rd.root or tc:FindFirstChild("HumanoidRootPart")
+            if not tRoot then continue end
+
             local thead=tc:FindFirstChild("Head")
-            local thum=tc:FindFirstChild("Humanoid")
-            local tPos=th.Position
+            -- Use detected lock part as billboard adornee; fall back to Head
+            local adornee=(rd and rd.lockPart) or thead
+
+            -- Health: use adaptive source if available
+            local hp, maxhp, alive
+            if rd then
+                hp=rd.getHealth(); maxhp=rd.getMaxHealth(); alive=rd.isAlive()
+            else
+                local thum=tc:FindFirstChild("Humanoid")
+                if not thum then continue end
+                hp=thum.Health; maxhp=thum.MaxHealth; alive=thum.Health>0
+            end
+            if not alive then continue end
+
+            local tPos=tRoot.Position
             local dist=(myPos-tPos).Magnitude
             local col=rainbowCol or getESPColor(dist)
 
@@ -858,16 +1014,20 @@ local function createGUI()
             local hrpSP,hrpOn=cam:WorldToViewportPoint(tPos)
             local hrpV2=hrpOn and hrpSP.Z>0 and Vector2.new(hrpSP.X,hrpSP.Y) or nil
 
-            if thead and thum then
+            if adornee then
                 if not espObjects[target.UserId] then createESP(target) end
                 local d=espObjects[target.UserId]
                 if d and d.billboard then
-                    if thead and thead.Parent then
-                        d.billboard.Adornee=thead; d.billboard.Parent=tc; d.billboard.Enabled=true
+                    if adornee and adornee.Parent then
+                        d.billboard.Adornee=adornee; d.billboard.Parent=tc; d.billboard.Enabled=true
                     end
                     if d.nameLabel then d.nameLabel.Visible=Settings.ESP.NameEnabled; d.nameLabel.Text=target.DisplayName; d.nameLabel.TextColor3=col end
                     if d.distLabel then d.distLabel.Visible=Settings.ESP.DistanceEnabled; d.distLabel.Text=string.format("[%dm]",math.floor(dist)); d.distLabel.TextColor3=col end
-                    if d.healthLabel then d.healthLabel.Visible=Settings.ESP.HealthEnabled; d.healthLabel.Text=string.format("%d HP",math.floor(thum.Health)); d.healthLabel.TextColor3=getHealthColor(thum.Health/thum.MaxHealth) end
+                    if d.healthLabel then
+                        d.healthLabel.Visible=Settings.ESP.HealthEnabled
+                        d.healthLabel.Text=string.format("%d HP",math.floor(hp))
+                        d.healthLabel.TextColor3=getHealthColor(hp/math.max(maxhp,1))
+                    end
                     if Settings.ESP.BoxEnabled then
                         if not d.boxHighlight then d.boxHighlight=Instance.new("Highlight"); d.boxHighlight.Name=BOX_TAG; d.boxHighlight.DepthMode=Enum.HighlightDepthMode.AlwaysOnTop end
                         d.boxHighlight.FillTransparency=Settings.ESP.ChamsEnabled and Settings.ESP.ChamsFillTransparency or 1
@@ -914,9 +1074,18 @@ local function createGUI()
                 end
             end
 
+            -- Adaptive skeleton: uses rig-detected bone pairs
             if skelOn and dist<=500 then
                 local skelCol=rainbowCol or getESPColor(dist)
-                local conns=tc:FindFirstChild("UpperTorso") and SKEL_R15 or SKEL_R6
+                -- Use detected bone list if available, else detect from rig type
+                local conns
+                if rd and rd.skelBones then
+                    conns=rd.skelBones
+                else
+                    conns=tc:FindFirstChild("UpperTorso") and
+                        {{"Head","UpperTorso"},{"UpperTorso","LowerTorso"},{"UpperTorso","LeftUpperArm"},{"LeftUpperArm","LeftLowerArm"},{"LeftLowerArm","LeftHand"},{"UpperTorso","RightUpperArm"},{"RightUpperArm","RightLowerArm"},{"RightLowerArm","RightHand"},{"LowerTorso","LeftUpperLeg"},{"LeftUpperLeg","LeftLowerLeg"},{"LeftLowerLeg","LeftFoot"},{"LowerTorso","RightUpperLeg"},{"RightUpperLeg","RightLowerLeg"},{"RightLowerLeg","RightFoot"}}
+                        or {{"Head","Torso"},{"Torso","Left Arm"},{"Torso","Right Arm"},{"Torso","Left Leg"},{"Torso","Right Leg"}}
+                end
                 local thick=Settings.ESP.SkeletonThickness
                 for _,c in ipairs(conns) do
                     local p1=tc:FindFirstChild(c[1]); local p2=tc:FindFirstChild(c[2])
@@ -938,9 +1107,20 @@ local function createGUI()
     end))
 
     table.insert(allConnections,Players.PlayerRemoving:Connect(function(t)
+        clearRigCache(t.UserId)  -- clear adaptive rig cache on leave
         if espObjects[t.UserId] then removeESP(t) end
         if radarDots[t.UserId] then radarDots[t.UserId]:Destroy(); radarDots[t.UserId]=nil end
     end))
+
+    -- Clear rig cache on respawn so it re-detects
+    table.insert(allConnections,Players.PlayerAdded:Connect(function(p)
+        p.CharacterAdded:Connect(function() clearRigCache(p.UserId) end)
+    end))
+    for _,p in ipairs(Players:GetPlayers()) do
+        if p~=player then
+            p.CharacterAdded:Connect(function() clearRigCache(p.UserId) end)
+        end
+    end
 
     local WIN_W, WIN_H   = 580, 480
     local SIDEBAR_W      = 110
@@ -1080,24 +1260,12 @@ local function createGUI()
         end
         for i,opt in ipairs(options) do
             local idx = i
-            local eb=UILib.newButton(row,{
-                Size=UDim2.new(0,perBtn,0,18),
-                Position=UDim2.new(0,(i-1)*(perBtn+2),0,16),
-                BackgroundColor3=opt==default and Theme.EnumBgActive or Theme.EnumBg,
-                BorderSizePixel=0,Text=opt,
-                TextColor3=opt==default and Theme.EnumTextActive or Theme.EnumText,
-                TextSize=9,Font=Enum.Font.GothamBold
-            },function()
+            local eb=UILib.newButton(row,{Size=UDim2.new(0,perBtn,0,18),Position=UDim2.new(0,(i-1)*(perBtn+2),0,16),BackgroundColor3=opt==default and Theme.EnumBgActive or Theme.EnumBg,BorderSizePixel=0,Text=opt,TextColor3=opt==default and Theme.EnumTextActive or Theme.EnumText,TextSize=9,Font=Enum.Font.GothamBold},function()
                 if isUnloading or _G[UNLOADED_KEY] or waitingForKey then return end
-                setSelected(idx)
-                if callback then callback(opt) end
-            end)
-            UILib.corner(eb,4)
-            table.insert(btns,eb)
+                setSelected(idx); if callback then callback(opt) end
+            end); UILib.corner(eb,4); table.insert(btns,eb)
         end
-        for i,opt in ipairs(options) do
-            if opt==default then setSelected(i); break end
-        end
+        for i,opt in ipairs(options) do if opt==default then setSelected(i); break end end
         table.insert(themeCallbacks,function()
             for i,b in ipairs(btns) do
                 b.BackgroundColor3 = options[i]==selected and Theme.EnumBgActive or Theme.EnumBg
@@ -1119,12 +1287,8 @@ local function createGUI()
         table.insert(allConnections,UserInputService.InputBegan:Connect(function(inp,gp)
             if not waitingForKey then return end
             if inp.UserInputType~=Enum.UserInputType.Keyboard then return end
-            cur=inp.KeyCode
-            kbBtn.Text=inp.KeyCode.Name; kbBtn.TextColor3=Theme.KeybindText
-            waitingForKey=false
-            task.defer(function()
-                if callback then callback(cur) end
-            end)
+            cur=inp.KeyCode; kbBtn.Text=inp.KeyCode.Name; kbBtn.TextColor3=Theme.KeybindText; waitingForKey=false
+            task.defer(function() if callback then callback(cur) end end)
         end))
         return row
     end
@@ -1354,6 +1518,8 @@ local function createGUI()
             {"enum","Lock Part",{"Head","HRP","UTorso","Torso"},"Head",function(v)
                 local m={Head="Head",HRP="HumanoidRootPart",UTorso="UpperTorso",Torso="Torso"}
                 Settings.Aimbot.LockPart=m[v] or "Head"
+                -- Clear rig cache so all players re-detect with new lock part
+                for uid,_ in pairs(rigCache) do rigCache[uid]=nil end
             end},
         })
         addCard(page,2,"FOV",{
@@ -1444,39 +1610,22 @@ local function createGUI()
                 local mx = player:GetMouse().X
                 local rx = math.clamp((mx - track.AbsolutePosition.X) / math.max(track.AbsoluteSize.X, 1), 0, 1)
                 local v = math.floor(rx * 255 + 0.5)
-                fill.Size = UDim2.new(rx, 0, 1, 0)
-                knob.Position = UDim2.new(rx, 0, 0.5, 0)
+                fill.Size = UDim2.new(rx, 0, 1, 0); knob.Position = UDim2.new(rx, 0, 0.5, 0)
                 vals[chanIdx] = v
                 local newCol = Color3.fromRGB(vals[1], vals[2], vals[3])
                 setColor(newCol); preview.BackgroundColor3 = newCol
             end
             for i, ch in ipairs(channels) do
-                local yy = startY + (i-1)*26
-                local idx = i
+                local yy = startY + (i-1)*26; local idx = i
                 UILib.newLabel(body,{Size=UDim2.new(0,10,0,12),Position=UDim2.new(0,0,0,yy+6),Text=ch[2],TextColor3=ch[1],TextSize=9,Font=Enum.Font.GothamBold})
                 local track=UILib.newFrame(body,{Size=UDim2.new(1,-16,0,4),Position=UDim2.new(0,14,0,yy+10),BackgroundColor3=Theme.SliderTrack,BorderSizePixel=0}); UILib.corner(track,4)
                 local fill=UILib.newFrame(track,{Size=UDim2.new(vals[i]/255,0,1,0),BackgroundColor3=ch[1],BorderSizePixel=0}); UILib.corner(fill,4)
                 local knob=UILib.newFrame(track,{Size=UDim2.new(0,10,0,10),AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.new(vals[i]/255,0,0.5,0),BackgroundColor3=Theme.ToggleKnob,BorderSizePixel=0}); UILib.corner(knob,100)
-                local hitZone = Instance.new("TextButton")
-                hitZone.Size = UDim2.new(1, 0, 0, 22)
-                hitZone.Position = UDim2.new(0, 0, 0, yy + 2)
-                hitZone.BackgroundTransparency = 0.99
-                hitZone.BorderSizePixel = 0
-                hitZone.Text = ""
-                hitZone.ZIndex = 5
-                hitZone.Parent = body
+                local hitZone = Instance.new("TextButton"); hitZone.Size=UDim2.new(1,0,0,22); hitZone.Position=UDim2.new(0,0,0,yy+2); hitZone.BackgroundTransparency=0.99; hitZone.BorderSizePixel=0; hitZone.Text=""; hitZone.ZIndex=5; hitZone.Parent=body
                 hitZone.MouseButton1Down:Connect(function()
                     if isUnloading or _G[UNLOADED_KEY] then return end
                     sampleTrack(track, fill, knob, idx)
-                    activeSlider = {
-                        track = track, fill = fill, knob = knob,
-                        valLbl = nil, min = 0, max = 255,
-                        callback = function(v)
-                            vals[idx] = math.floor(v)
-                            local newCol = Color3.fromRGB(vals[1], vals[2], vals[3])
-                            setColor(newCol); preview.BackgroundColor3 = newCol
-                        end
-                    }
+                    activeSlider = {track=track,fill=fill,knob=knob,valLbl=nil,min=0,max=255,callback=function(v) vals[idx]=math.floor(v); local newCol=Color3.fromRGB(vals[1],vals[2],vals[3]); setColor(newCol); preview.BackgroundColor3=newCol end}
                 end)
             end
         end
@@ -1523,75 +1672,29 @@ local function createGUI()
         local bannerW = CARD_W*2 + CONTENT_PAD
         local bannerH = 70
         local bannerY = col1Y(page).Value
-        local bannerBg = UILib.newFrame(page,{
-            Size=UDim2.new(0,bannerW,0,bannerH),
-            Position=UDim2.new(0,COL1_X,0,bannerY),
-            BackgroundColor3=Color3.fromRGB(24,16,36),
-            BorderSizePixel=0
-        })
+        local bannerBg = UILib.newFrame(page,{Size=UDim2.new(0,bannerW,0,bannerH),Position=UDim2.new(0,COL1_X,0,bannerY),BackgroundColor3=Color3.fromRGB(24,16,36),BorderSizePixel=0})
         UILib.corner(bannerBg,8); UILib.stroke(bannerBg,Color3.fromRGB(140,60,200),1.5)
         UILib.newFrame(bannerBg,{Size=UDim2.new(0,4,1,0),BackgroundColor3=Color3.fromRGB(180,80,255),BorderSizePixel=0})
-        UILib.newLabel(bannerBg,{
-            Size=UDim2.new(1,-16,0,28),Position=UDim2.new(0,14,0,8),
-            Text="binxix",TextColor3=Color3.fromRGB(210,140,255),
-            TextSize=22,Font=Enum.Font.GothamBold,TextXAlignment=Enum.TextXAlignment.Left
-        })
-        UILib.newLabel(bannerBg,{
-            Size=UDim2.new(1,-16,0,18),Position=UDim2.new(0,14,0,38),
-            Text="Click any link below to open it in your browser",
-            TextColor3=Color3.fromRGB(130,110,155),
-            TextSize=10,Font=Enum.Font.Gotham,TextXAlignment=Enum.TextXAlignment.Left
-        })
+        UILib.newLabel(bannerBg,{Size=UDim2.new(1,-16,0,28),Position=UDim2.new(0,14,0,8),Text="binxix",TextColor3=Color3.fromRGB(210,140,255),TextSize=22,Font=Enum.Font.GothamBold,TextXAlignment=Enum.TextXAlignment.Left})
+        UILib.newLabel(bannerBg,{Size=UDim2.new(1,-16,0,18),Position=UDim2.new(0,14,0,38),Text="Click any link below to open it in your browser",TextColor3=Color3.fromRGB(130,110,155),TextSize=10,Font=Enum.Font.Gotham,TextXAlignment=Enum.TextXAlignment.Left})
         local bannerBottom = bannerY + bannerH + CONTENT_PAD
-        col1Y(page).Value = bannerBottom
-        col2Y(page).Value = bannerBottom
+        col1Y(page).Value = bannerBottom; col2Y(page).Value = bannerBottom
 
         local function makeLinkCard(col, icon, label, sublabel, url, accentColor)
             local cardH = 54
             local x = col==1 and COL1_X or COL2_X
             local yVal = col==1 and col1Y(page) or col2Y(page)
-            local cardBg = UILib.newFrame(page,{
-                Size=UDim2.new(0,CARD_W,0,cardH),
-                Position=UDim2.new(0,x,0,yVal.Value),
-                BackgroundColor3=Color3.fromRGB(26,22,36),
-                BorderSizePixel=0,Active=true
-            })
+            local cardBg = UILib.newFrame(page,{Size=UDim2.new(0,CARD_W,0,cardH),Position=UDim2.new(0,x,0,yVal.Value),BackgroundColor3=Color3.fromRGB(26,22,36),BorderSizePixel=0,Active=true})
             UILib.corner(cardBg,8); UILib.stroke(cardBg,accentColor,1.2)
             UILib.newFrame(cardBg,{Size=UDim2.new(0,3,1,0),BackgroundColor3=accentColor,BorderSizePixel=0})
-            local iconCircle = UILib.newFrame(cardBg,{
-                Size=UDim2.new(0,32,0,32),Position=UDim2.new(0,14,0.5,-16),
-                BackgroundColor3=Color3.fromRGB(36,28,52),BorderSizePixel=0
-            }); UILib.corner(iconCircle,100); UILib.stroke(iconCircle,accentColor,1)
-            UILib.newLabel(iconCircle,{
-                Size=UDim2.new(1,0,1,0),Text=icon,
-                TextColor3=accentColor,TextSize=14,Font=Enum.Font.GothamBold,
-                TextXAlignment=Enum.TextXAlignment.Center,TextYAlignment=Enum.TextYAlignment.Center
-            })
-            UILib.newLabel(cardBg,{
-                Size=UDim2.new(1,-70,0,18),Position=UDim2.new(0,54,0,8),
-                Text=label,TextColor3=Color3.fromRGB(220,215,235),
-                TextSize=12,Font=Enum.Font.GothamBold,TextXAlignment=Enum.TextXAlignment.Left
-            })
-            UILib.newLabel(cardBg,{
-                Size=UDim2.new(1,-70,0,14),Position=UDim2.new(0,54,0,28),
-                Text=sublabel,TextColor3=Color3.fromRGB(120,110,140),
-                TextSize=9,Font=Enum.Font.Gotham,TextXAlignment=Enum.TextXAlignment.Left,
-                TextTruncate=Enum.TextTruncate.AtEnd
-            })
-            UILib.newLabel(cardBg,{
-                Size=UDim2.new(0,20,1,0),Position=UDim2.new(1,-24,0,0),
-                Text=">",TextColor3=accentColor,TextSize=14,Font=Enum.Font.GothamBold,
-                TextXAlignment=Enum.TextXAlignment.Center,TextYAlignment=Enum.TextYAlignment.Center
-            })
-            local clickBtn = UILib.newButton(cardBg,{
-                Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,Text="",ZIndex=5
-            },function() openURL(url) end)
-            clickBtn.MouseEnter:Connect(function()
-                UILib.tween(cardBg,0.12,{BackgroundColor3=Color3.fromRGB(36,28,52)}):Play()
-            end)
-            clickBtn.MouseLeave:Connect(function()
-                UILib.tween(cardBg,0.12,{BackgroundColor3=Color3.fromRGB(26,22,36)}):Play()
-            end)
+            local iconCircle=UILib.newFrame(cardBg,{Size=UDim2.new(0,32,0,32),Position=UDim2.new(0,14,0.5,-16),BackgroundColor3=Color3.fromRGB(36,28,52),BorderSizePixel=0}); UILib.corner(iconCircle,100); UILib.stroke(iconCircle,accentColor,1)
+            UILib.newLabel(iconCircle,{Size=UDim2.new(1,0,1,0),Text=icon,TextColor3=accentColor,TextSize=14,Font=Enum.Font.GothamBold,TextXAlignment=Enum.TextXAlignment.Center,TextYAlignment=Enum.TextYAlignment.Center})
+            UILib.newLabel(cardBg,{Size=UDim2.new(1,-70,0,18),Position=UDim2.new(0,54,0,8),Text=label,TextColor3=Color3.fromRGB(220,215,235),TextSize=12,Font=Enum.Font.GothamBold,TextXAlignment=Enum.TextXAlignment.Left})
+            UILib.newLabel(cardBg,{Size=UDim2.new(1,-70,0,14),Position=UDim2.new(0,54,0,28),Text=sublabel,TextColor3=Color3.fromRGB(120,110,140),TextSize=9,Font=Enum.Font.Gotham,TextXAlignment=Enum.TextXAlignment.Left,TextTruncate=Enum.TextTruncate.AtEnd})
+            UILib.newLabel(cardBg,{Size=UDim2.new(0,20,1,0),Position=UDim2.new(1,-24,0,0),Text=">",TextColor3=accentColor,TextSize=14,Font=Enum.Font.GothamBold,TextXAlignment=Enum.TextXAlignment.Center,TextYAlignment=Enum.TextYAlignment.Center})
+            local clickBtn=UILib.newButton(cardBg,{Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,Text="",ZIndex=5},function() openURL(url) end)
+            clickBtn.MouseEnter:Connect(function() UILib.tween(cardBg,0.12,{BackgroundColor3=Color3.fromRGB(36,28,52)}):Play() end)
+            clickBtn.MouseLeave:Connect(function() UILib.tween(cardBg,0.12,{BackgroundColor3=Color3.fromRGB(26,22,36)}):Play() end)
             yVal.Value = yVal.Value + cardH + CONTENT_PAD
             page.CanvasSize = UDim2.new(0,0,0,math.max(col1Y(page).Value,col2Y(page).Value)+CONTENT_PAD)
         end
@@ -1602,29 +1705,15 @@ local function createGUI()
         makeLinkCard(2,"D","Discord Server","discord.gg/S4nPV2Rx7F","https://discord.gg/S4nPV2Rx7F",Color3.fromRGB(88,101,242))
 
         local lsY = math.max(col1Y(page).Value, col2Y(page).Value)
-        local lsBg = UILib.newFrame(page,{
-            Size=UDim2.new(0,bannerW,0,44),
-            Position=UDim2.new(0,COL1_X,0,lsY),
-            BackgroundColor3=Color3.fromRGB(20,26,20),BorderSizePixel=0
-        })
+        local lsBg = UILib.newFrame(page,{Size=UDim2.new(0,bannerW,0,44),Position=UDim2.new(0,COL1_X,0,lsY),BackgroundColor3=Color3.fromRGB(20,26,20),BorderSizePixel=0})
         UILib.corner(lsBg,8); UILib.stroke(lsBg,Color3.fromRGB(50,180,80),1)
-        UILib.newLabel(lsBg,{
-            Size=UDim2.new(1,-120,1,0),Position=UDim2.new(0,12,0,0),
-            Text="Copy Loadstring to Clipboard",
-            TextColor3=Color3.fromRGB(100,220,120),TextSize=11,Font=Enum.Font.GothamBold,
-            TextXAlignment=Enum.TextXAlignment.Left,TextYAlignment=Enum.TextYAlignment.Center
-        })
-        local copyBtn = UILib.newButton(lsBg,{
-            Size=UDim2.new(0,90,0,28),Position=UDim2.new(1,-98,0.5,-14),
-            BackgroundColor3=Color3.fromRGB(35,80,40),BorderSizePixel=0,
-            Text="Copy",TextColor3=Color3.fromRGB(100,220,120),TextSize=11,Font=Enum.Font.GothamBold
-        },function()
+        UILib.newLabel(lsBg,{Size=UDim2.new(1,-120,1,0),Position=UDim2.new(0,12,0,0),Text="Copy Loadstring to Clipboard",TextColor3=Color3.fromRGB(100,220,120),TextSize=11,Font=Enum.Font.GothamBold,TextXAlignment=Enum.TextXAlignment.Left,TextYAlignment=Enum.TextYAlignment.Center})
+        local copyBtn=UILib.newButton(lsBg,{Size=UDim2.new(0,90,0,28),Position=UDim2.new(1,-98,0.5,-14),BackgroundColor3=Color3.fromRGB(35,80,40),BorderSizePixel=0,Text="Copy",TextColor3=Color3.fromRGB(100,220,120),TextSize=11,Font=Enum.Font.GothamBold},function()
             local ls='loadstring(game:HttpGet("https://raw.githubusercontent.com/binx-ux/binxix-hub-v7/main/source/main.lua"))()'
             pcall(function() if setclipboard then setclipboard(ls) end end)
             sendNotification("Loadstring","Copied to clipboard!",3)
         end); UILib.corner(copyBtn,6)
-        col1Y(page).Value = lsY + 44 + CONTENT_PAD
-        col2Y(page).Value = col1Y(page).Value
+        col1Y(page).Value = lsY + 44 + CONTENT_PAD; col2Y(page).Value = col1Y(page).Value
         page.CanvasSize = UDim2.new(0,0,0,col1Y(page).Value+CONTENT_PAD)
     end
 
@@ -1773,26 +1862,18 @@ local function createGUI()
         local char=player.Character; if not char then return end
         local hrp=char:FindFirstChild("HumanoidRootPart"); local hum=char:FindFirstChild("Humanoid")
         if not hrp or not hum then return end
-
-        local method=Settings.Movement.SpeedMethod
-        local spd=Settings.Movement.Speed
-
+        local method=Settings.Movement.SpeedMethod; local spd=Settings.Movement.Speed
         if method=="WalkSpeed" then
             if speedVel then pcall(function() speedVel:Destroy() end); speedVel=nil end
-            hum.WalkSpeed=spd
-            return
+            hum.WalkSpeed=spd; return
         end
-
         local md=hum.MoveDirection
         if md.Magnitude<0.1 then
-            if speedVel then pcall(function() speedVel:Destroy() end); speedVel=nil end
-            return
+            if speedVel then pcall(function() speedVel:Destroy() end); speedVel=nil end; return
         end
-
         if method=="CFrame" then
             if speedVel then pcall(function() speedVel:Destroy() end); speedVel=nil end
-            hum.WalkSpeed=16
-            local wm=md*spd*dt; hrp.CFrame=hrp.CFrame+Vector3.new(wm.X,0,wm.Z)
+            hum.WalkSpeed=16; local wm=md*spd*dt; hrp.CFrame=hrp.CFrame+Vector3.new(wm.X,0,wm.Z)
         elseif method=="Velocity" then
             hum.WalkSpeed=16
             if not speedVel or speedVel.Parent~=hrp then
@@ -1812,11 +1893,9 @@ local function createGUI()
 
     table.insert(allConnections,RunService.RenderStepped:Connect(function(dt)
         if isUnloading or _G[UNLOADED_KEY] then return end
-
         if Settings.Visuals.CustomFOV then
             local cam=Workspace.CurrentCamera; if cam and cam.FieldOfView~=Settings.Visuals.FOVAmount then cam.FieldOfView=Settings.Visuals.FOVAmount end
         end
-
         if Settings.Movement.Fly and isFlying then
             local char=player.Character; if char then
                 local hrp=char:FindFirstChild("HumanoidRootPart"); if hrp and flyBodyVelocity and flyBodyGyro then
@@ -1832,7 +1911,6 @@ local function createGUI()
                 end
             end
         elseif not Settings.Movement.Fly and isFlying then stopFly() end
-
         if Settings.Movement.BunnyHop then
             local char=player.Character; if char then
                 local hum=char:FindFirstChild("Humanoid"); local hrp=char:FindFirstChild("HumanoidRootPart")
@@ -1856,11 +1934,9 @@ local function createGUI()
         else
             if bhopVel then bhopVel:Destroy(); bhopVel=nil end; curBhop=0
         end
-
         fpsFrame.Visible=Settings.Visuals.ShowFPS; velLbl.Visible=Settings.Visuals.ShowVelocity
         if Settings.Visuals.ShowFPS then
-            fc=fc+1
-            local curSec=math.floor(tick())
+            fc=fc+1; local curSec=math.floor(tick())
             if curSec~=lastFpsTick then cfps=fc; fc=0; lastFpsTick=curSec end
             fpsLbl.Text="FPS: "..tostring(cfps)
         end
@@ -1902,7 +1978,6 @@ local function createGUI()
     table.insert(allConnections,UserInputService.InputBegan:Connect(function(input,gp)
         if isUnloading or _G[UNLOADED_KEY] or gp then return end
         if waitingForKey then return end
-
         if input.KeyCode==Settings.Keybinds.ToggleGUI then mainFrame.Visible=not mainFrame.Visible end
         if input.KeyCode==Settings.Keybinds.ToggleFly then if Settings.Movement.Fly then if isFlying then stopFly() else startFly() end end end
         if input.KeyCode==Settings.Keybinds.ToggleAutoTP then
@@ -1954,7 +2029,6 @@ _G[CLEANUP_KEY] = function()
     _G[CLEANUP_KEY] = nil
 end
 
--- suppress identifiable print strings
 task.delay(1,function() sendNotification("Binxix Hub V7","Loaded | RCtrl = toggle | "..currentGameData.name,4) end)
 task.delay(6,function() sendNotification("Discord","discord.gg/S4nPV2Rx7F",5) end)
 
